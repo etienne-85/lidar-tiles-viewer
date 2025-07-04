@@ -51,22 +51,23 @@ TerrainApp/
 - Generate patchIds in `"gridX:gridZ"` format
 - **Fixed patch size: 64x64 units**
 
-### Implementation Phases
+## Implementation Phases
+### Phase 1: Basic tile system
 
-**Phase 1: Basic Setup** ✅ **COMPLETE**
+**1A: Basic Setup** ✅ **COMPLETE**
 - TerrainScene with fixed fullscreen Canvas (position: fixed)
 - CameraControls integration
 - Built-in Grid component from @react-three/drei
 - Built-in axesHelper for coordinate reference
 
-**Phase 2: Single Terrain Patch** ✅ **COMPLETE**
+**1B: Single Terrain Patch** ✅ **COMPLETE**
 - TerrainPatch component with sine wave height displacement
 - PlaneGeometry with 32x32 subdivisions
 - **Plane orientation fix**: rotation={[-Math.PI / 2, 0, 0]} to align with grid
 - Vertex manipulation with proper normals calculation
 - **TerrainScene exported as arrow function**
 
-**Phase 3: Player Movement** ✅ **COMPLETE**
+**1C: Player Movement** ✅ **COMPLETE**
 - Player cylinder with WASD controls using KeyCode (French AZERTY compatible)
 - Third-person camera system with orbiting capability
 - Camera always follows player as target with smooth tracking
@@ -74,14 +75,23 @@ TerrainApp/
 - Position tracking and terrain height following
 - Grid and axesHelper remain for reference
 
-**Phase 4: Dynamic Patch System** ✅ **COMPLETE**
+**1D: Dynamic Patch System** ✅ **COMPLETE**
 - Implement Grid System utility functions
 - Implement usePatchPolling hook returning visible patchIds
 - Update TerrainScene to use hook and render multiple patches
 - Replace single patch with dynamic patch rendering
 - Grid and axesHelper remain for debugging/reference
 
-### Key Technical Decisions
+**1E: fixes**
+- [ ] fix: terrain patches seamless issue at junction
+- [ ] fix: after a while player position is unsync with terrain elevation
+- [ ] improvement: camera should also move to remain at fixed distanced from player
+- refactor: `usePatchPolling` hook optimizations 
+- [ ] Add debug logs to see which patches are recreated at each hook call
+- [ ] store internal patch index inside the hook and use for comparision to know when patch index changes. Skip updating if no changes detected
+- [ ] useMemo for patches according to their id to avoid unnecessary rebuild
+
+## Key Technical Decisions
 - Fixed positioning for true fullscreen Canvas
 - Keep Grid and axesHelper throughout all phases for reference
 - Use built-in R3F/drei components where available (Grid, axesHelper)
@@ -89,3 +99,5 @@ TerrainApp/
 - **KeyCode-based input for international keyboard support**
 - **Third-person camera with player-centric orbiting and camera-relative movement**
 - **Camera target always locked to player position**
+
+
