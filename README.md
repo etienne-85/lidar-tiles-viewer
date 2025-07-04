@@ -82,10 +82,10 @@ TerrainApp/
 - Replace single patch with dynamic patch rendering
 - Grid and axesHelper remain for debugging/reference
 
-**1E: fixes**
-- [ ] fix: terrain patches seamless issue at junction: issue only occurs on Z and not X axis
-- [ ] fix: after a while player position is unsync with terrain elevation
+**Final: fixes**
+- [x] fix: terrain patches seamless issue at junction: issue only occurs on Z and not X axis (probably due to plane rotation)
 - [x] improvement: camera should also move to remain at fixed distanced from player while still maintaining zoom and orbit adjustment
+- [x] fix: after a while player position is unsync with terrain elevation
 - [ ] improvement: while moving player camera don't maintain its vertical angle but tends to move towards ground 
 - refactor: `usePatchPolling` hook optimizations 
 - [ ] Add debug logs to see which patches are recreated at each hook call

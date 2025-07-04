@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { CameraControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
-import { Vector3 } from 'three';
 
 // Grid System Constants and Utilities
 const PATCH_SIZE = 64;
@@ -212,45 +211,76 @@ function generatePatchTexture(gridX, gridZ) {
 }
 
 function TerrainPatch({ patchId }) {
-  const meshRef = useRef();
-
   // Derive position from patchId
   const [gridX, gridZ] = patchId.split(':').map(Number);
   const { worldX, worldZ } = gridToWorld(gridX, gridZ);
-  const patchOrigin = new Vector3(worldX, 0, worldZ);
 
   // Generate texture for this patch
   const patchTexture = generatePatchTexture(gridX, gridZ);
 
-  useEffect(() => {
-    if (!meshRef.current) return;
+  // Create custom BufferGeometry
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const segments = 32;
+    const vertexCount = (segments + 1) * (segments + 1);
+    
+    // Arrays for geometry attributes
+    const positions = new Float32Array(vertexCount * 3);
+    const normals = new Float32Array(vertexCount * 3);
+    const uvs = new Float32Array(vertexCount * 2);
+    const indices = [];
 
-    const geometry = meshRef.current.geometry;
-    const vertices = geometry.attributes.position.array;
-
-    // Apply height displacement
-    for (let i = 0; i < vertices.length; i += 3) {
-      const localX = vertices[i];
-      const localY = vertices[i + 1];
-
-      // Convert local coordinates to world coordinates
-      const worldX = patchOrigin.x + localX;
-      const worldZ = patchOrigin.z + localY;
-
-      // Sine wave height function
-      let height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 +
-        Math.sin(worldX * 0.05) * 2;
-      height = Math.sin(worldZ * 0.05) * 10;
-      vertices[i + 2] = Math.round(height*10)/10; // Z coordinate
+    // Generate vertices
+    let vertexIndex = 0;
+    for (let z = 0; z <= segments; z++) {
+      for (let x = 0; x <= segments; x++) {
+        // Calculate world coordinates
+        const worldPosX = worldX + (x / segments) * PATCH_SIZE - PATCH_SIZE / 2;
+        const worldPosZ = worldZ + (z / segments) * PATCH_SIZE - PATCH_SIZE / 2;
+        
+        // Calculate height at this world position
+        const height = getTerrainHeight(worldPosX, worldPosZ)
+        
+        // Set position (X, Y, Z) - Y is up
+        positions[vertexIndex * 3] = worldPosX;
+        positions[vertexIndex * 3 + 1] = height;
+        positions[vertexIndex * 3 + 2] = worldPosZ;
+        
+        // Set UVs
+        uvs[vertexIndex * 2] = x / segments;
+        uvs[vertexIndex * 2 + 1] = z / segments;
+        
+        vertexIndex++;
+      }
     }
 
-    geometry.attributes.position.needsUpdate = true;
-    geometry.computeVertexNormals();
-  }, [patchId, patchOrigin]);
+    // Generate indices for triangles
+    for (let z = 0; z < segments; z++) {
+      for (let x = 0; x < segments; x++) {
+        const a = z * (segments + 1) + x;
+        const b = z * (segments + 1) + x + 1;
+        const c = (z + 1) * (segments + 1) + x;
+        const d = (z + 1) * (segments + 1) + x + 1;
+
+        // Two triangles per quad (correct winding for upward faces)
+        indices.push(a, c, b);
+        indices.push(b, c, d);
+      }
+    }
+
+    // Set geometry attributes
+    geo.setIndex(indices);
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    
+    // Calculate normals
+    geo.computeVertexNormals();
+    
+    return geo;
+  }, [patchId, worldX, worldZ]);
 
   return (
-    <mesh ref={meshRef} position={patchOrigin} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[PATCH_SIZE, PATCH_SIZE, 32, 32]} />
+    <mesh position={[0, 0, 0]} geometry={geometry}>
       <meshStandardMaterial map={patchTexture} wireframe={false} />
     </mesh>
   );
