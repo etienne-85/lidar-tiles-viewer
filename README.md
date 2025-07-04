@@ -50,7 +50,7 @@ Player Position → usePatchPolling → TerrainScene → TerrainPatch[]
 - Built-in Grid component from @react-three/drei
 - Built-in axesHelper for coordinate reference
 
-**Phase 2: Single Terrain Patch**
+**Phase 2: Single Terrain Patch** ✅ **COMPLETE**
 - TerrainPatch component with sine wave height displacement
 - PlaneGeometry with 32x32 subdivisions
 - **Plane orientation fix**: rotation={[-Math.PI / 2, 0, 0]} to align with grid
