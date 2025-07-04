@@ -95,13 +95,11 @@ App/
 - [ ] useMemo for patches according to their id to avoid unnecessary rebuild
 
 **refactor: components file spliting**
-```
-App/
-├── TerrainScene           # Main R3F scene + orchestration
-├── Player                 # Cylinder + movement controls  
-├── usePatchPolling        # Hook for patch visibility logic
-└── TerrainPatch           # Individual terrain patch mesh
-```
+- [ ] match suggested file hierarchy
+
+**misc**
+- [ ] update docs: README.md, ARCHITECTURE.md
+- [ ] fix: TS types
 
 ## Key Technical Decisions
 - Fixed positioning for true fullscreen Canvas
