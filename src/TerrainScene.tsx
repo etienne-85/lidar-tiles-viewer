@@ -23,13 +23,13 @@ function gridToWorld(gridX, gridZ) {
 function calculateVisiblePatches(playerPosition, tileRange) {
   const { gridX, gridZ } = worldToGrid(playerPosition[0], playerPosition[2]);
   const visiblePatches = [];
-  
+
   for (let x = gridX - tileRange; x <= gridX + tileRange; x++) {
     for (let z = gridZ - tileRange; z <= gridZ + tileRange; z++) {
       visiblePatches.push(`${x}:${z}`);
     }
   }
-  
+
   return visiblePatches;
 }
 
@@ -43,6 +43,9 @@ function Player({ position, onPositionChange }) {
   const controlsRef = useRef();
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
   const velocity = useRef([0, 0]);
+  const targetDistance = useRef(20); // Target camera distance
+  const isZooming = useRef(false);
+  const zoomTimeout = useRef(null);
   
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -57,12 +60,32 @@ function Player({ position, onPositionChange }) {
       }
     };
     
+    const handleWheel = (e) => {
+      // Detect zoom activity
+      isZooming.current = true;
+      
+      // Clear existing timeout
+      if (zoomTimeout.current) {
+        clearTimeout(zoomTimeout.current);
+      }
+      
+      // Set timeout to detect when zooming stops
+      zoomTimeout.current = setTimeout(() => {
+        isZooming.current = false;
+      }, 200); // 200ms delay after last scroll event
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('wheel', handleWheel);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('wheel', handleWheel);
+      if (zoomTimeout.current) {
+        clearTimeout(zoomTimeout.current);
+      }
     };
   }, []);
   
@@ -106,6 +129,21 @@ function Player({ position, onPositionChange }) {
     
     // Camera always follows player position as target
     controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
+    
+    // Adaptive camera distance control
+    const currentDistance = camera.position.distanceTo(new THREE.Vector3(...newPosition));
+    
+    if (isZooming.current) {
+      // User is zooming, update target distance to current distance
+      targetDistance.current = currentDistance;
+    } else {
+      // User is not zooming, maintain target distance
+      if (Math.abs(currentDistance - targetDistance.current) > 0.1) {
+        const direction = camera.position.clone().sub(new THREE.Vector3(...newPosition)).normalize();
+        const newCameraPos = new THREE.Vector3(...newPosition).add(direction.multiplyScalar(targetDistance.current));
+        camera.position.copy(newCameraPos);
+      }
+    }
   });
   
   return (
@@ -121,8 +159,8 @@ function Player({ position, onPositionChange }) {
 
 function getTerrainHeight(x, z) {
   // Match the terrain height function from TerrainPatch
-  return Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3 + 
-         Math.sin(x * 0.05) * 2;
+  return Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3 +
+    Math.sin(x * 0.05) * 2;
 }
 
 function generatePatchTexture(gridX, gridZ) {
@@ -130,16 +168,16 @@ function generatePatchTexture(gridX, gridZ) {
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
-  
+
   // Background color based on patch coordinates
   const hue = ((gridX * 73 + gridZ * 37) % 360);
   ctx.fillStyle = `hsl(${hue}, 40%, 85%)`;
   ctx.fillRect(0, 0, 512, 512);
-  
+
   // Grid lines (subdivisions matching 32x32 geometry)
   ctx.strokeStyle = '#666666';
   ctx.lineWidth = 1;
-  
+
   // Draw internal grid
   for (let i = 0; i <= 32; i++) {
     const pos = (i / 32) * 512;
@@ -148,72 +186,72 @@ function generatePatchTexture(gridX, gridZ) {
     ctx.moveTo(pos, 0);
     ctx.lineTo(pos, 512);
     ctx.stroke();
-    
+
     // Horizontal lines
     ctx.beginPath();
     ctx.moveTo(0, pos);
     ctx.lineTo(512, pos);
     ctx.stroke();
   }
-  
+
   // Bold border lines
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 4;
   ctx.strokeRect(0, 0, 512, 512);
-  
+
   // Patch coordinates text
   ctx.fillStyle = '#000000';
   ctx.font = 'bold 32px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  
+
   const coordText = `${gridX}:${gridZ}`;
   ctx.fillText(coordText, 256, 256);
-  
+
   // Additional info text
   ctx.font = '16px Arial';
   ctx.fillText(`World: ${gridX * PATCH_SIZE}, ${gridZ * PATCH_SIZE}`, 256, 300);
-  
+
   return new THREE.CanvasTexture(canvas);
 }
 
 function TerrainPatch({ patchId }) {
   const meshRef = useRef();
-  
+
   // Derive position from patchId
   const [gridX, gridZ] = patchId.split(':').map(Number);
   const { worldX, worldZ } = gridToWorld(gridX, gridZ);
   const position = [worldX, 0, worldZ];
-  
+
   // Generate texture for this patch
   const patchTexture = generatePatchTexture(gridX, gridZ);
-  
+
   useEffect(() => {
     if (!meshRef.current) return;
-    
+
     const geometry = meshRef.current.geometry;
     const vertices = geometry.attributes.position.array;
-    
+
     // Apply height displacement
     for (let i = 0; i < vertices.length; i += 3) {
       const localX = vertices[i];
       const localY = vertices[i + 1];
-      
+
       // Convert local coordinates to world coordinates
       const worldX = position[0] + localX;
       const worldZ = position[2] + localY;
-      
+
       // Sine wave height function
-      const height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 + 
-                    Math.sin(worldX * 0.05) * 2;
-      
+      const height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 +
+        Math.sin(worldX * 0.05) * 2;
+
       vertices[i + 2] = height; // Z coordinate
     }
-    
+
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
   }, [patchId, position]);
-  
+
   return (
     <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[PATCH_SIZE, PATCH_SIZE, 32, 32]} />
@@ -222,17 +260,17 @@ function TerrainPatch({ patchId }) {
   );
 }
 
-export const TerrainScene = ()=> {
+export const TerrainScene = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const tileRange = 2; // Show patches 2 tiles around player
-  
+
   const visiblePatchIds = usePatchPolling(playerPosition, tileRange);
-  
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <Canvas
         camera={{ position: [0, 20, 30], fov: 60 }}
-        style={{ width: '100%', height: '100%', backgroundColor:'white' }}
+        style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
       >
         <Player position={playerPosition} onPositionChange={setPlayerPosition} />
         <ambientLight intensity={0.5} />
