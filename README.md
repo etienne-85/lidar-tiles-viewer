@@ -10,18 +10,15 @@ TerrainApp/
 ```
 
 
-## Data Flow
-Player Position → usePatchPolling → TerrainScene → TerrainPatch[]
-
-## Component Responsibilities
+### Component Responsibilities
 
 **TerrainScene (Main Container)**
 - Fixed fullscreen Canvas with proper positioning
 - CameraControls integration for third-person camera
-- Grid and axesHelper for reference (kept throughout phases)
+- Grid and axesHelper for reference (kept throughout all phases)
 - Player position state management
-- Renders active patches from usePatchPolling hook
-- Scene orchestration
+- Calls usePatchPolling with player position and tileRange
+- Renders all visible patches returned by hook
 - **Exported as arrow function**
 
 **Player**
@@ -33,19 +30,28 @@ Player Position → usePatchPolling → TerrainScene → TerrainPatch[]
 - **Full orbiting**: Mouse drag rotates camera around player, scroll zooms
 
 **usePatchPolling (React Hook)**
-- Input: Player position, view radius
+- Input: Player position, tileRange
 - Maintains patch index map (patchId → patchData)
-- Returns array of active patches to render
-- Handles patch creation/removal based on visibility
+- Uses Grid System utilities to calculate visible patches
+- Returns array of visible patchIds in format `"gridX:gridZ"`
+- **Note**: Will recreate all patches on every render (optimization deferred)
 
 **TerrainPatch**
-- Props: { patchId, position, size, heightData, textureUrl }
-- PlaneGeometry with height displacement
-- Grid-aligned positioning
-- Texture mapping
+- Props: { patchId }
+- Derives position and size from patchId using Grid System
+- PlaneGeometry with height displacement (sine wave function)
+- Grid-aligned positioning with proper plane orientation
+- **64x64 unit patches** with 32x32 subdivisions
 - **Proper plane orientation with rotation={[-Math.PI / 2, 0, 0]}**
 
-## Implementation Phases
+**Utility Functions**
+- Convert world coordinates to grid coordinates
+- Convert grid coordinates to world coordinates  
+- Calculate visible patches within tileRange
+- Generate patchIds in `"gridX:gridZ"` format
+- **Fixed patch size: 64x64 units**
+
+### Implementation Phases
 
 **Phase 1: Basic Setup** ✅ **COMPLETE**
 - TerrainScene with fixed fullscreen Canvas (position: fixed)
@@ -68,19 +74,18 @@ Player Position → usePatchPolling → TerrainScene → TerrainPatch[]
 - Position tracking and terrain height following
 - Grid and axesHelper remain for reference
 
-**Phase 4: Dynamic Patch System** (NEXT)
-- Implement usePatchPolling hook
-- Multiple patches based on player position
-- Dynamic loading/unloading
-- Grid and axesHelper stay for debugging/reference
+**Phase 4: Dynamic Patch System** ✅ **COMPLETE**
+- Implement Grid System utility functions
+- Implement usePatchPolling hook returning visible patchIds
+- Update TerrainScene to use hook and render multiple patches
+- Replace single patch with dynamic patch rendering
+- Grid and axesHelper remain for debugging/reference
 
-## Key Technical Decisions
+### Key Technical Decisions
 - Fixed positioning for true fullscreen Canvas
 - Keep Grid and axesHelper throughout all phases for reference
 - Use built-in R3F/drei components where available (Grid, axesHelper)
 - React state for player position (simple and reactive)
-- Patch index map for efficient patch management
-- Proper plane orientation for terrain alignment
 - **KeyCode-based input for international keyboard support**
 - **Third-person camera with player-centric orbiting and camera-relative movement**
 - **Camera target always locked to player position**

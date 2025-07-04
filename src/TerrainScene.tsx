@@ -3,6 +3,41 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { CameraControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Grid System Constants and Utilities
+const PATCH_SIZE = 64;
+
+function worldToGrid(worldX, worldZ) {
+  return {
+    gridX: Math.floor(worldX / PATCH_SIZE),
+    gridZ: Math.floor(worldZ / PATCH_SIZE)
+  };
+}
+
+function gridToWorld(gridX, gridZ) {
+  return {
+    worldX: gridX * PATCH_SIZE,
+    worldZ: gridZ * PATCH_SIZE
+  };
+}
+
+function calculateVisiblePatches(playerPosition, tileRange) {
+  const { gridX, gridZ } = worldToGrid(playerPosition[0], playerPosition[2]);
+  const visiblePatches = [];
+  
+  for (let x = gridX - tileRange; x <= gridX + tileRange; x++) {
+    for (let z = gridZ - tileRange; z <= gridZ + tileRange; z++) {
+      visiblePatches.push(`${x}:${z}`);
+    }
+  }
+  
+  return visiblePatches;
+}
+
+// usePatchPolling Hook
+function usePatchPolling(playerPosition, tileRange) {
+  return calculateVisiblePatches(playerPosition, tileRange);
+}
+
 function Player({ position, onPositionChange }) {
   const meshRef = useRef();
   const controlsRef = useRef();
@@ -90,8 +125,13 @@ function getTerrainHeight(x, z) {
          Math.sin(x * 0.05) * 2;
 }
 
-function TerrainPatch({ patchId, position, size }) {
+function TerrainPatch({ patchId }) {
   const meshRef = useRef();
+  
+  // Derive position from patchId
+  const [gridX, gridZ] = patchId.split(':').map(Number);
+  const { worldX, worldZ } = gridToWorld(gridX, gridZ);
+  const position = [worldX, 0, worldZ];
   
   useEffect(() => {
     if (!meshRef.current) return;
@@ -101,23 +141,27 @@ function TerrainPatch({ patchId, position, size }) {
     
     // Apply height displacement
     for (let i = 0; i < vertices.length; i += 3) {
-      const x = vertices[i];
-      const y = vertices[i + 1];
+      const localX = vertices[i];
+      const localY = vertices[i + 1];
+      
+      // Convert local coordinates to world coordinates
+      const worldX = position[0] + localX;
+      const worldZ = position[2] + localY;
       
       // Sine wave height function
-      const height = Math.sin(x * 0.1) * Math.cos(y * 0.1) * 3 + 
-                    Math.sin(x * 0.05) * 2;
+      const height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 + 
+                    Math.sin(worldX * 0.05) * 2;
       
       vertices[i + 2] = height; // Z coordinate
     }
     
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
-  }, []);
+  }, [patchId, position]);
   
   return (
     <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[size, size, 32, 32]} />
+      <planeGeometry args={[PATCH_SIZE, PATCH_SIZE, 32, 32]} />
       <meshStandardMaterial color="#4a7c59" wireframe={false} />
     </mesh>
   );
@@ -125,6 +169,9 @@ function TerrainPatch({ patchId, position, size }) {
 
 export const TerrainScene = ()=> {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
+  const tileRange = 2; // Show patches 2 tiles around player
+  
+  const visiblePatchIds = usePatchPolling(playerPosition, tileRange);
   
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
@@ -137,11 +184,9 @@ export const TerrainScene = ()=> {
         <directionalLight position={[10, 10, 5]} intensity={1} />
         <Grid args={[100, 100]} />
         <axesHelper args={[5]} />
-        <TerrainPatch 
-          patchId="patch-0-0" 
-          position={[0, 0, 0]} 
-          size={20} 
-        />
+        {visiblePatchIds.map(patchId => (
+          <TerrainPatch key={patchId} patchId={patchId} />
+        ))}
       </Canvas>
     </div>
   );
