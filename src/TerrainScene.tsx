@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { CameraControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
+import { Vector3 } from 'three';
 
 // Grid System Constants and Utilities
 const PATCH_SIZE = 64;
@@ -42,8 +43,7 @@ function Player({ position, onPositionChange }) {
   const meshRef = useRef();
   const controlsRef = useRef();
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
-  const velocity = useRef([0, 0]);
-  const targetDistance = useRef(20); // Target camera distance
+    const targetDistance = useRef(20); // Target camera distance
   const isZooming = useRef(false);
   const zoomTimeout = useRef(null);
   
@@ -93,9 +93,7 @@ function Player({ position, onPositionChange }) {
     if (!meshRef.current || !controlsRef.current) return;
     
     // Calculate movement relative to camera direction
-    const speed = 10;
-    let moveX = 0;
-    let moveZ = 0;
+    const speed = 20;
     
     // Get camera direction (normalized)
     const camera = state.camera;
@@ -131,7 +129,7 @@ function Player({ position, onPositionChange }) {
     controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
     
     // Adaptive camera distance control
-    const currentDistance = camera.position.distanceTo(new THREE.Vector3(...newPosition));
+    const currentDistance = controlsRef.current.distance;
     
     if (isZooming.current) {
       // User is zooming, update target distance to current distance
@@ -139,9 +137,7 @@ function Player({ position, onPositionChange }) {
     } else {
       // User is not zooming, maintain target distance
       if (Math.abs(currentDistance - targetDistance.current) > 0.1) {
-        const direction = camera.position.clone().sub(new THREE.Vector3(...newPosition)).normalize();
-        const newCameraPos = new THREE.Vector3(...newPosition).add(direction.multiplyScalar(targetDistance.current));
-        camera.position.copy(newCameraPos);
+        controlsRef.current.distance = targetDistance.current;
       }
     }
   });
@@ -221,7 +217,7 @@ function TerrainPatch({ patchId }) {
   // Derive position from patchId
   const [gridX, gridZ] = patchId.split(':').map(Number);
   const { worldX, worldZ } = gridToWorld(gridX, gridZ);
-  const position = [worldX, 0, worldZ];
+  const patchOrigin = new Vector3(worldX, 0, worldZ);
 
   // Generate texture for this patch
   const patchTexture = generatePatchTexture(gridX, gridZ);
@@ -238,22 +234,22 @@ function TerrainPatch({ patchId }) {
       const localY = vertices[i + 1];
 
       // Convert local coordinates to world coordinates
-      const worldX = position[0] + localX;
-      const worldZ = position[2] + localY;
+      const worldX = patchOrigin.x + localX;
+      const worldZ = patchOrigin.z + localY;
 
       // Sine wave height function
-      const height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 +
+      let height = Math.sin(worldX * 0.1) * Math.cos(worldZ * 0.1) * 3 +
         Math.sin(worldX * 0.05) * 2;
-
-      vertices[i + 2] = height; // Z coordinate
+      height = Math.sin(worldZ * 0.05) * 10;
+      vertices[i + 2] = Math.round(height*10)/10; // Z coordinate
     }
 
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
-  }, [patchId, position]);
+  }, [patchId, patchOrigin]);
 
   return (
-    <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh ref={meshRef} position={patchOrigin} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[PATCH_SIZE, PATCH_SIZE, 32, 32]} />
       <meshStandardMaterial map={patchTexture} wireframe={false} />
     </mesh>
