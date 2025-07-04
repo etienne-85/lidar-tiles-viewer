@@ -248,7 +248,8 @@ function TerrainPatch({ patchId }) {
         
         // Set UVs
         uvs[vertexIndex * 2] = x / segments;
-        uvs[vertexIndex * 2 + 1] = z / segments;
+        // FIX: to match triangles rewinding order 
+        uvs[vertexIndex * 2 + 1] = 1 - (z / segments)
         
         vertexIndex++;
       }
@@ -281,7 +282,7 @@ function TerrainPatch({ patchId }) {
 
   return (
     <mesh position={[0, 0, 0]} geometry={geometry}>
-      <meshStandardMaterial map={patchTexture} wireframe={false} />
+      <meshStandardMaterial map={patchTexture} wireframe={false} side={THREE.DoubleSide} />
     </mesh>
   );
 }
