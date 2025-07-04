@@ -125,6 +125,58 @@ function getTerrainHeight(x, z) {
          Math.sin(x * 0.05) * 2;
 }
 
+function generatePatchTexture(gridX, gridZ) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  
+  // Background color based on patch coordinates
+  const hue = ((gridX * 73 + gridZ * 37) % 360);
+  ctx.fillStyle = `hsl(${hue}, 40%, 85%)`;
+  ctx.fillRect(0, 0, 512, 512);
+  
+  // Grid lines (subdivisions matching 32x32 geometry)
+  ctx.strokeStyle = '#666666';
+  ctx.lineWidth = 1;
+  
+  // Draw internal grid
+  for (let i = 0; i <= 32; i++) {
+    const pos = (i / 32) * 512;
+    // Vertical lines
+    ctx.beginPath();
+    ctx.moveTo(pos, 0);
+    ctx.lineTo(pos, 512);
+    ctx.stroke();
+    
+    // Horizontal lines
+    ctx.beginPath();
+    ctx.moveTo(0, pos);
+    ctx.lineTo(512, pos);
+    ctx.stroke();
+  }
+  
+  // Bold border lines
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, 512, 512);
+  
+  // Patch coordinates text
+  ctx.fillStyle = '#000000';
+  ctx.font = 'bold 32px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  const coordText = `${gridX}:${gridZ}`;
+  ctx.fillText(coordText, 256, 256);
+  
+  // Additional info text
+  ctx.font = '16px Arial';
+  ctx.fillText(`World: ${gridX * PATCH_SIZE}, ${gridZ * PATCH_SIZE}`, 256, 300);
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
 function TerrainPatch({ patchId }) {
   const meshRef = useRef();
   
@@ -132,6 +184,9 @@ function TerrainPatch({ patchId }) {
   const [gridX, gridZ] = patchId.split(':').map(Number);
   const { worldX, worldZ } = gridToWorld(gridX, gridZ);
   const position = [worldX, 0, worldZ];
+  
+  // Generate texture for this patch
+  const patchTexture = generatePatchTexture(gridX, gridZ);
   
   useEffect(() => {
     if (!meshRef.current) return;
@@ -162,7 +217,7 @@ function TerrainPatch({ patchId }) {
   return (
     <mesh ref={meshRef} position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[PATCH_SIZE, PATCH_SIZE, 32, 32]} />
-      <meshStandardMaterial color="#4a7c59" wireframe={false} />
+      <meshStandardMaterial map={patchTexture} wireframe={false} />
     </mesh>
   );
 }
@@ -177,7 +232,7 @@ export const TerrainScene = ()=> {
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <Canvas
         camera={{ position: [0, 20, 30], fov: 60 }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', backgroundColor:'white' }}
       >
         <Player position={playerPosition} onPositionChange={setPlayerPosition} />
         <ambientLight intensity={0.5} />
