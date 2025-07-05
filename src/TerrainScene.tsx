@@ -42,10 +42,9 @@ function Player({ position, onPositionChange }) {
   const meshRef = useRef();
   const controlsRef = useRef();
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
-  const targetDistance = useRef(20); // Target camera distance
   const isZooming = useRef(false);
   const zoomTimeout = useRef(null);
-  const preserveVerticalAngle = useRef(0); // Store vertical angle to maintain during movement
+  const preservedSpherical = useRef({ azimuth: 0, elevation: 0, distance: 20 }); // Store spherical coordinates
   const isUserOrbiting = useRef(false);
   
   useEffect(() => {
@@ -105,19 +104,28 @@ function Player({ position, onPositionChange }) {
   useFrame((state, delta) => {
     if (!meshRef.current || !controlsRef.current) return;
     
-    // Store current vertical angle when user is not moving
+    // Store current spherical coordinates when user is not moving
     const isMoving = keys.current.KeyW || keys.current.KeyA || keys.current.KeyS || keys.current.KeyD;
     
     if (!isMoving || isUserOrbiting.current) {
-      // Update preserved angle when not moving or when user is actively orbiting
+      // Update preserved spherical coordinates when not moving or when user is actively orbiting
       const camera = state.camera;
       const target = controlsRef.current.getTarget(new THREE.Vector3());
-      const cameraToTarget = new THREE.Vector3().subVectors(target, camera.position);
-      const distance = cameraToTarget.length();
+      const cameraToTarget = new THREE.Vector3().subVectors(camera.position, target);
       
-      // Use atan2 for more stable angle calculation
-      const horizontalDistance = Math.sqrt(cameraToTarget.x * cameraToTarget.x + cameraToTarget.z * cameraToTarget.z);
-      preserveVerticalAngle.current = Math.atan2(cameraToTarget.y, horizontalDistance);
+      // Calculate spherical coordinates
+      const distance = cameraToTarget.length();
+      const azimuth = Math.atan2(cameraToTarget.x, cameraToTarget.z);
+      const elevation = Math.asin(cameraToTarget.y / distance);
+      
+      if (isUserOrbiting.current && isMoving) {
+        // When orbiting while moving, only update angles, not distance
+        preservedSpherical.current.azimuth = azimuth;
+        preservedSpherical.current.elevation = elevation;
+      } else {
+        // When not moving or orbiting while stationary, update all coordinates
+        preservedSpherical.current = { azimuth, elevation, distance };
+      }
     }
     
     // Calculate movement relative to camera direction
@@ -153,29 +161,21 @@ function Player({ position, onPositionChange }) {
     const newPosition = [newX, height + 1, newZ];
     onPositionChange(newPosition);
     
-    // Update camera position while maintaining vertical angle
+    // Update camera position while maintaining spherical coordinates
     if (isMoving && !isUserOrbiting.current) {
-      // Calculate camera position that maintains the preserved vertical angle
+      // Calculate camera position using preserved spherical coordinates
       const targetPos = new THREE.Vector3(newPosition[0], newPosition[1], newPosition[2]);
-      const distance = targetDistance.current;
-      const verticalAngle = preserveVerticalAngle.current;
+      const { azimuth, elevation, distance } = preservedSpherical.current;
       
-      // Get current camera direction for horizontal positioning
-      const camera = state.camera;
-      const currentTarget = controlsRef.current.getTarget(new THREE.Vector3());
-      const currentDirection = new THREE.Vector3().subVectors(camera.position, currentTarget);
-      
-      // Maintain horizontal direction but recalculate distances based on preserved angle
-      const horizontalDistance = distance * Math.cos(verticalAngle);
-      const verticalOffset = distance * Math.sin(verticalAngle);
-      
-      // Normalize horizontal direction
-      const horizontalDirection = new THREE.Vector3(currentDirection.x, 0, currentDirection.z).normalize();
+      // Convert spherical to cartesian coordinates
+      const x = distance * Math.sin(azimuth) * Math.cos(elevation);
+      const y = distance * Math.sin(elevation);
+      const z = distance * Math.cos(azimuth) * Math.cos(elevation);
       
       const newCameraPos = new THREE.Vector3(
-        targetPos.x + horizontalDirection.x * horizontalDistance,
-        targetPos.y + verticalOffset,
-        targetPos.z + horizontalDirection.z * horizontalDistance
+        targetPos.x + x,
+        targetPos.y + y,
+        targetPos.z + z
       );
       
       // Use setLookAt to maintain both position and target
@@ -193,12 +193,12 @@ function Player({ position, onPositionChange }) {
     const currentDistance = controlsRef.current.distance;
     
     if (isZooming.current) {
-      // User is zooming, update target distance to current distance
-      targetDistance.current = currentDistance;
+      // User is zooming, update preserved distance to current distance
+      preservedSpherical.current.distance = currentDistance;
     } else {
-      // User is not zooming, maintain target distance
-      if (Math.abs(currentDistance - targetDistance.current) > 0.1) {
-        controlsRef.current.distance = targetDistance.current;
+      // User is not zooming, maintain preserved distance
+      if (Math.abs(currentDistance - preservedSpherical.current.distance) > 0.1) {
+        controlsRef.current.distance = preservedSpherical.current.distance;
       }
     }
   });
