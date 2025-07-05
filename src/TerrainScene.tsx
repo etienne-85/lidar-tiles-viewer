@@ -1,20 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { Player } from './Player';
 import { TerrainPatch } from './TerrainPatch';
 import { usePatchPolling } from './hooks/usePatchPolling';
+import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
+
+// Default tile coordinates
+const TILECOL = 0;
+const TILEROW = 0;
 
 export const TerrainScene = () => {
-  const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([0, 0, 0]);
+  // Calculate initial world position from default tile coordinates
+  const [initialWorldX, initialWorldZ] = tileToWorldPosition(TILECOL, TILEROW);
+  
+  // Global state management
+  const [currentPatch, setCurrentPatch] = useState<string>(`${TILECOL}:${TILEROW}`);
+  const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([
+    initialWorldX, 
+    0, 
+    initialWorldZ
+  ]);
+  
   const tileRange = 2; // Show patches 2 tiles around player
 
-  const visiblePatchIds = usePatchPolling(playerPosition, tileRange);
+  // Update currentPatch when player moves
+  useEffect(() => {
+    const newPatch = calculateCurrentPatch(playerPosition);
+    if (newPatch !== currentPatch) {
+      setCurrentPatch(newPatch);
+    }
+  }, [playerPosition, currentPatch]);
+
+  // Optimized patch polling - only when currentPatch changes
+  const visiblePatchIds = usePatchPolling(currentPatch, tileRange);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <Canvas
-        camera={{ position: [0, 20, 30], fov: 60 }}
+        camera={{ position: [initialWorldX, 20, initialWorldZ + 30], fov: 60 }}
         style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
       >
         <Player position={playerPosition} onPositionChange={setPlayerPosition} />

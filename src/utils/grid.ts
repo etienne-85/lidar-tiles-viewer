@@ -1,45 +1,37 @@
-// Grid System Constants and Utilities
-export const PATCH_SIZE = 64;
+export const PATCH_SIZE = 100;
 
-export interface GridCoordinates {
-  gridX: number;
-  gridZ: number;
-}
-
-export interface WorldCoordinates {
-  worldX: number;
-  worldZ: number;
-}
-
-export function worldToGrid(worldX: number, worldZ: number): GridCoordinates {
-  return {
-    gridX: Math.floor(worldX / PATCH_SIZE),
-    gridZ: Math.floor(worldZ / PATCH_SIZE)
-  };
-}
-
-export function gridToWorld(gridX: number, gridZ: number): WorldCoordinates {
+// Convert grid coordinates to world position
+export function gridToWorld(gridX: number, gridZ: number): { worldX: number; worldZ: number } {
   return {
     worldX: gridX * PATCH_SIZE,
     worldZ: gridZ * PATCH_SIZE
   };
 }
 
-export function calculateVisiblePatches(playerPosition: [number, number, number], tileRange: number): string[] {
-  const { gridX, gridZ } = worldToGrid(playerPosition[0], playerPosition[2]);
-  const visiblePatches: string[] = [];
-
-  for (let x = gridX - tileRange; x <= gridX + tileRange; x++) {
-    for (let z = gridZ - tileRange; z <= gridZ + tileRange; z++) {
-      visiblePatches.push(`${x}:${z}`);
-    }
-  }
-
-  return visiblePatches;
+// Generate terrain height at world coordinates
+export function getTerrainHeight(worldX: number, worldZ: number): number {
+  const amplitude = 10;
+  const frequency = 0.05;
+  return amplitude * Math.sin(worldX * frequency) * Math.cos(worldZ * frequency);
 }
 
-export function getTerrainHeight(x: number, z: number): number {
-  // Match the terrain height function used across components
-  return Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3 +
-    Math.sin(x * 0.05) * 2;
+// Convert world position to tile coordinates
+export function worldToTilePosition(worldX: number, worldZ: number): [number, number] {
+  const tileCol = Math.floor(worldX / PATCH_SIZE);
+  const tileRow = Math.floor(worldZ / PATCH_SIZE);
+  return [tileCol, tileRow];
+}
+
+// Convert tile coordinates to world position
+export function tileToWorldPosition(tileCol: number, tileRow: number): [number, number] {
+  const worldX = tileCol * PATCH_SIZE;
+  const worldZ = tileRow * PATCH_SIZE;
+  return [worldX, worldZ];
+}
+
+// Calculate current patch from player position
+export function calculateCurrentPatch(playerPosition: [number, number, number]): string {
+  const [worldX, , worldZ] = playerPosition;
+  const [tileCol, tileRow] = worldToTilePosition(worldX, worldZ);
+  return `${tileCol}:${tileRow}`;
 }
