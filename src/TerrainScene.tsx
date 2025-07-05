@@ -38,14 +38,86 @@ function usePatchPolling(playerPosition, tileRange) {
   return calculateVisiblePatches(playerPosition, tileRange);
 }
 
+// useVerticalOrbitPreservation Hook
+function useVerticalOrbitPreservation(enabled, controlsRef, isMoving, isUserOrbiting, isZooming) {
+  const preservedSpherical = useRef({ azimuth: 0, elevation: 0, distance: 20 });
+  
+  const updatePreservedCoordinates = (state) => {
+    if (!controlsRef.current) return;
+    
+    const camera = state.camera;
+    const target = controlsRef.current.getTarget(new THREE.Vector3());
+    const cameraToTarget = new THREE.Vector3().subVectors(camera.position, target);
+    
+    // Calculate spherical coordinates
+    const distance = cameraToTarget.length();
+    const azimuth = Math.atan2(cameraToTarget.x, cameraToTarget.z);
+    const elevation = Math.asin(cameraToTarget.y / distance);
+    
+    if (isUserOrbiting.current && isMoving) {
+      // When orbiting while moving, only update angles, not distance
+      preservedSpherical.current.azimuth = azimuth;
+      preservedSpherical.current.elevation = elevation;
+    } else {
+      // When not moving or orbiting while stationary, update all coordinates
+      preservedSpherical.current = { azimuth, elevation, distance };
+    }
+  };
+  
+  const getCameraPosition = (targetPos) => {
+    const { azimuth, elevation, distance } = preservedSpherical.current;
+    
+    // Convert spherical to cartesian coordinates
+    const x = distance * Math.sin(azimuth) * Math.cos(elevation);
+    const y = distance * Math.sin(elevation);
+    const z = distance * Math.cos(azimuth) * Math.cos(elevation);
+    
+    return new THREE.Vector3(
+      targetPos.x + x,
+      targetPos.y + y,
+      targetPos.z + z
+    );
+  };
+  
+  const updateDistance = (currentDistance) => {
+    if (isZooming.current) {
+      // User is zooming, update preserved distance to current distance
+      preservedSpherical.current.distance = currentDistance;
+    } else {
+      // User is not zooming, maintain preserved distance
+      if (Math.abs(currentDistance - preservedSpherical.current.distance) > 0.1) {
+        controlsRef.current.distance = preservedSpherical.current.distance;
+      }
+    }
+  };
+  
+  return {
+    enabled,
+    updatePreservedCoordinates,
+    getCameraPosition,
+    updateDistance
+  };
+}
+
 function Player({ position, onPositionChange }) {
   const meshRef = useRef();
   const controlsRef = useRef();
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
   const isZooming = useRef(false);
   const zoomTimeout = useRef(null);
-  const preservedSpherical = useRef({ azimuth: 0, elevation: 0, distance: 20 }); // Store spherical coordinates
   const isUserOrbiting = useRef(false);
+  const targetDistance = useRef(20); // Fallback distance tracking for original behavior
+  
+  // Toggle for vertical orbit preservation (set to false to restore original behavior)
+  const PRESERVE_VERTICAL_ORBIT = true;
+  
+  const verticalOrbitPreservation = useVerticalOrbitPreservation(
+    PRESERVE_VERTICAL_ORBIT,
+    controlsRef,
+    keys.current.KeyW || keys.current.KeyA || keys.current.KeyS || keys.current.KeyD,
+    isUserOrbiting,
+    isZooming
+  );
   
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -107,25 +179,9 @@ function Player({ position, onPositionChange }) {
     // Store current spherical coordinates when user is not moving
     const isMoving = keys.current.KeyW || keys.current.KeyA || keys.current.KeyS || keys.current.KeyD;
     
-    if (!isMoving || isUserOrbiting.current) {
-      // Update preserved spherical coordinates when not moving or when user is actively orbiting
-      const camera = state.camera;
-      const target = controlsRef.current.getTarget(new THREE.Vector3());
-      const cameraToTarget = new THREE.Vector3().subVectors(camera.position, target);
-      
-      // Calculate spherical coordinates
-      const distance = cameraToTarget.length();
-      const azimuth = Math.atan2(cameraToTarget.x, cameraToTarget.z);
-      const elevation = Math.asin(cameraToTarget.y / distance);
-      
-      if (isUserOrbiting.current && isMoving) {
-        // When orbiting while moving, only update angles, not distance
-        preservedSpherical.current.azimuth = azimuth;
-        preservedSpherical.current.elevation = elevation;
-      } else {
-        // When not moving or orbiting while stationary, update all coordinates
-        preservedSpherical.current = { azimuth, elevation, distance };
-      }
+    // Update preserved coordinates if vertical orbit preservation is enabled
+    if (verticalOrbitPreservation.enabled && (!isMoving || isUserOrbiting.current)) {
+      verticalOrbitPreservation.updatePreservedCoordinates(state);
     }
     
     // Calculate movement relative to camera direction
@@ -161,44 +217,42 @@ function Player({ position, onPositionChange }) {
     const newPosition = [newX, height + 1, newZ];
     onPositionChange(newPosition);
     
-    // Update camera position while maintaining spherical coordinates
+    // Update camera position
     if (isMoving && !isUserOrbiting.current) {
-      // Calculate camera position using preserved spherical coordinates
       const targetPos = new THREE.Vector3(newPosition[0], newPosition[1], newPosition[2]);
-      const { azimuth, elevation, distance } = preservedSpherical.current;
       
-      // Convert spherical to cartesian coordinates
-      const x = distance * Math.sin(azimuth) * Math.cos(elevation);
-      const y = distance * Math.sin(elevation);
-      const z = distance * Math.cos(azimuth) * Math.cos(elevation);
-      
-      const newCameraPos = new THREE.Vector3(
-        targetPos.x + x,
-        targetPos.y + y,
-        targetPos.z + z
-      );
-      
-      // Use setLookAt to maintain both position and target
-      controlsRef.current.setLookAt(
-        newCameraPos.x, newCameraPos.y, newCameraPos.z,
-        targetPos.x, targetPos.y, targetPos.z,
-        true
-      );
+      if (verticalOrbitPreservation.enabled) {
+        // Use vertical orbit preservation
+        const newCameraPos = verticalOrbitPreservation.getCameraPosition(targetPos);
+        
+        controlsRef.current.setLookAt(
+          newCameraPos.x, newCameraPos.y, newCameraPos.z,
+          targetPos.x, targetPos.y, targetPos.z,
+          true
+        );
+      } else {
+        // Original behavior: just follow target
+        controlsRef.current.setTarget(targetPos.x, targetPos.y, targetPos.z, true);
+      }
     } else {
       // When not moving, use normal target following
       controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
     }
     
-    // Adaptive camera distance control
+    // Distance control
     const currentDistance = controlsRef.current.distance;
     
-    if (isZooming.current) {
-      // User is zooming, update preserved distance to current distance
-      preservedSpherical.current.distance = currentDistance;
+    if (verticalOrbitPreservation.enabled) {
+      // Use vertical orbit preservation distance control
+      verticalOrbitPreservation.updateDistance(currentDistance);
     } else {
-      // User is not zooming, maintain preserved distance
-      if (Math.abs(currentDistance - preservedSpherical.current.distance) > 0.1) {
-        controlsRef.current.distance = preservedSpherical.current.distance;
+      // Original distance control behavior
+      if (isZooming.current) {
+        targetDistance.current = currentDistance;
+      } else {
+        if (Math.abs(currentDistance - targetDistance.current) > 0.1) {
+          controlsRef.current.distance = targetDistance.current;
+        }
       }
     }
   });
