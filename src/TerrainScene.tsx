@@ -4,6 +4,7 @@ import { Grid } from '@react-three/drei';
 import { Player } from './Player';
 import { TerrainPatch } from './TerrainPatch';
 import { usePatchPolling } from './hooks/usePatchPolling';
+import { useImageryTiles } from './hooks/useImageryTiles';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
 
 // Default tile coordinates
@@ -34,6 +35,21 @@ export const TerrainScene = () => {
 
   // Optimized patch polling - only when currentPatch changes
   const visiblePatchIds = usePatchPolling(currentPatch, TILERANGE);
+
+  // TEMPORARY: Test tile fetching alongside existing system
+  const testTileTexture = useImageryTiles(currentPatch);
+
+  // Monitor network activity as player moves
+  useEffect(() => {
+    console.log('Fetching tile for patch:', currentPatch);
+  }, [currentPatch]);
+
+  // Log when texture loads
+  useEffect(() => {
+    if (testTileTexture) {
+      console.log('Tile texture loaded for patch:', currentPatch);
+    }
+  }, [testTileTexture, currentPatch]);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
