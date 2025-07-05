@@ -53,7 +53,7 @@ function useImageryTiles(patchId: string): THREE.Texture | null;
 
 ## Incremental Implementation Steps
 
-### STEP #1: Global State Refactor ⏳ **NEXT**
+### STEP #1: Global State Refactor  ✅ **COMPLETE** 
 
 ***NOTE: tileCol, tileRow default value must be provided***
 
@@ -95,7 +95,7 @@ function usePatchProceduralTexture(patchId: string): THREE.CanvasTexture {
 
 **Expected result**: Player spawns at patch labeled "tileCol:tileRow"
 
-### STEP #2: Basic useImageryTiles Hook ⏳ **PENDING**
+### STEP #2: Basic useImageryTiles Hook ⏳ **NEXT**
 
 **New hook implementation**:
 ```typescript

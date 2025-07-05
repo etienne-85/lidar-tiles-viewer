@@ -9,6 +9,8 @@ import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
 // Default tile coordinates
 const TILECOL = 0;
 const TILEROW = 0;
+// Number of patches showed around player
+const TILERANGE = 2; 
 
 export const TerrainScene = () => {
   // Calculate initial world position from default tile coordinates
@@ -21,8 +23,6 @@ export const TerrainScene = () => {
     0, 
     initialWorldZ
   ]);
-  
-  const tileRange = 2; // Show patches 2 tiles around player
 
   // Update currentPatch when player moves
   useEffect(() => {
@@ -33,7 +33,7 @@ export const TerrainScene = () => {
   }, [playerPosition, currentPatch]);
 
   // Optimized patch polling - only when currentPatch changes
-  const visiblePatchIds = usePatchPolling(currentPatch, tileRange);
+  const visiblePatchIds = usePatchPolling(currentPatch, TILERANGE);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
