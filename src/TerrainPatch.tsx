@@ -10,6 +10,8 @@ interface TerrainPatchProps {
 }
 
 export function TerrainPatch({ patchId }: TerrainPatchProps) {
+    console.log('TerrainPatch render');
+
     // Parse tile coordinates from patchId
     const [tileCol, tileRow] = patchId.split(':').map(Number);
 

@@ -16,6 +16,7 @@ export function Player({ position, onPositionChange }: PlayerProps) {
   const targetDistance = useRef(20); // Target camera distance
   const isZooming = useRef(false);
   const zoomTimeout = useRef<any>(null);
+  const lastReportedPosition = useRef<[number, number, number]>(position);
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,7 +94,19 @@ export function Player({ position, onPositionChange }: PlayerProps) {
     const height = getTerrainHeight(newX, newZ);
     
     const newPosition: [number, number, number] = [newX, height + 1, newZ];
-    onPositionChange(newPosition);
+    
+    // Only call onPositionChange if position changed significantly
+    const threshold = 0.01; // Minimum movement threshold
+    const lastPos = lastReportedPosition.current;
+    const hasMovedSignificantly = 
+      Math.abs(newPosition[0] - lastPos[0]) > threshold ||
+      Math.abs(newPosition[1] - lastPos[1]) > threshold ||
+      Math.abs(newPosition[2] - lastPos[2]) > threshold;
+    
+    if (hasMovedSignificantly) {
+      onPositionChange(newPosition);
+      lastReportedPosition.current = newPosition;
+    }
     
     // Camera always follows player position as target
     controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
