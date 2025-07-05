@@ -99,13 +99,16 @@ App/
 - [ ] update docs: README.md, ARCHITECTURE.md
 - [ ] fix: TS types
 
-## Conclusions
+## Result
+### Preview
+![terrain overview](./images/stage1.png)
+
 ### Pitfalls
 - seamless issue at patches' edge on Z axis due to induced loss of precision with `Plane` rotation 
 - maintain camera distance to player while still allow orbiting and zooming
 - maintain camera vertical orbiting angle while player is moving
 
-### Key Technical Decisions
+### Sidenotes
 - Fixed positioning for true fullscreen Canvas
 - Keep Grid and axesHelper throughout all phases for reference
 - Use built-in R3F/drei components where available (Grid, axesHelper)
