@@ -85,21 +85,17 @@ App/
 - Grid and axesHelper remain for debugging/reference
 
 ### Final step: 
-**fixes**
+**stabilization**
 - [x] fix: terrain patches seamless issue at junction: issue only occurs on Z and not X axis (probably due to plane rotation)
-- [x] improvement: camera should also move to remain at fixed distanced from player while still maintaining zoom and orbit adjustment
 - [x] fix: after a while player position is unsync with terrain elevation
-- [ ] improvement: while moving player camera don't maintain its vertical angle but tends to move towards ground 
-
-**refactor: `usePatchPolling` hook optimizations**
-- [ ] Add debug logs to see which patches are recreated at each hook call
-- [ ] store internal patch index inside the hook and use for comparision to know when patch index changes. Skip updating if no changes detected
-- [ ] useMemo for patches according to their id to avoid unnecessary rebuild
-
-**refactor: components file spliting**
-- [ ] match initially planned files hierarchy
-
-**misc**
+- [x] improvement: camera should also move to remain at fixed distanced from player while still maintaining zoom and orbit adjustment
+- [-] improvement: while moving player camera don't maintain its vertical angle but tends to move towards ground (postponed on separate branch)
+**patches system optimizations**
+- [ ] investigation(patches): Add debug logs to see which patches are recreated at each hook call
+- [ ] optimization(patches): useMemo for patches according to their id to avoid unnecessary rebuild
+- [ ] refactor(`usePatchPolling`): store internal patch index inside the hook and use for comparision to know when patch index changes. Skip updating if no changes detected
+**others**
+- [x] match initially planned files splitting hierarchy
 - [ ] update docs: README.md, ARCHITECTURE.md
 - [ ] fix: TS types
 
@@ -107,7 +103,7 @@ App/
 ### Pitfalls
 - seamless issue at patches' edge on Z axis due to induced loss of precision with `Plane` rotation 
 - maintain camera distance to player while still allow orbiting and zooming
--  
+- maintain camera vertical orbiting angle while player is moving
 
 ### Key Technical Decisions
 - Fixed positioning for true fullscreen Canvas
