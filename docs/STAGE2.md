@@ -144,7 +144,7 @@ export function worldToTilePosition(worldX: number, worldZ: number): [number, nu
 - Loading state management
 
 ### Final Step 
-***TODO: list remaining tasks, bugs, ... here***
+***TODO: list remaining bugs, refactoring tasks, improvements, optimizations,  ... here***
 
 
 ## Expected Final Result
