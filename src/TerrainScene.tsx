@@ -42,9 +42,11 @@ function Player({ position, onPositionChange }) {
   const meshRef = useRef();
   const controlsRef = useRef();
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
-    const targetDistance = useRef(20); // Target camera distance
+  const targetDistance = useRef(20); // Target camera distance
   const isZooming = useRef(false);
   const zoomTimeout = useRef(null);
+  const preserveVerticalAngle = useRef(0); // Store vertical angle to maintain during movement
+  const isUserOrbiting = useRef(false);
   
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -74,14 +76,26 @@ function Player({ position, onPositionChange }) {
       }, 200); // 200ms delay after last scroll event
     };
     
+    const handleMouseDown = () => {
+      isUserOrbiting.current = true;
+    };
+    
+    const handleMouseUp = () => {
+      isUserOrbiting.current = false;
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('wheel', handleWheel);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
       if (zoomTimeout.current) {
         clearTimeout(zoomTimeout.current);
       }
@@ -90,6 +104,21 @@ function Player({ position, onPositionChange }) {
   
   useFrame((state, delta) => {
     if (!meshRef.current || !controlsRef.current) return;
+    
+    // Store current vertical angle when user is not moving
+    const isMoving = keys.current.KeyW || keys.current.KeyA || keys.current.KeyS || keys.current.KeyD;
+    
+    if (!isMoving || isUserOrbiting.current) {
+      // Update preserved angle when not moving or when user is actively orbiting
+      const camera = state.camera;
+      const target = controlsRef.current.getTarget(new THREE.Vector3());
+      const cameraToTarget = new THREE.Vector3().subVectors(target, camera.position);
+      const distance = cameraToTarget.length();
+      
+      // Use atan2 for more stable angle calculation
+      const horizontalDistance = Math.sqrt(cameraToTarget.x * cameraToTarget.x + cameraToTarget.z * cameraToTarget.z);
+      preserveVerticalAngle.current = Math.atan2(cameraToTarget.y, horizontalDistance);
+    }
     
     // Calculate movement relative to camera direction
     const speed = 20;
@@ -124,8 +153,41 @@ function Player({ position, onPositionChange }) {
     const newPosition = [newX, height + 1, newZ];
     onPositionChange(newPosition);
     
-    // Camera always follows player position as target
-    controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
+    // Update camera position while maintaining vertical angle
+    if (isMoving && !isUserOrbiting.current) {
+      // Calculate camera position that maintains the preserved vertical angle
+      const targetPos = new THREE.Vector3(newPosition[0], newPosition[1], newPosition[2]);
+      const distance = targetDistance.current;
+      const verticalAngle = preserveVerticalAngle.current;
+      
+      // Get current camera direction for horizontal positioning
+      const camera = state.camera;
+      const currentTarget = controlsRef.current.getTarget(new THREE.Vector3());
+      const currentDirection = new THREE.Vector3().subVectors(camera.position, currentTarget);
+      
+      // Maintain horizontal direction but recalculate distances based on preserved angle
+      const horizontalDistance = distance * Math.cos(verticalAngle);
+      const verticalOffset = distance * Math.sin(verticalAngle);
+      
+      // Normalize horizontal direction
+      const horizontalDirection = new THREE.Vector3(currentDirection.x, 0, currentDirection.z).normalize();
+      
+      const newCameraPos = new THREE.Vector3(
+        targetPos.x + horizontalDirection.x * horizontalDistance,
+        targetPos.y + verticalOffset,
+        targetPos.z + horizontalDirection.z * horizontalDistance
+      );
+      
+      // Use setLookAt to maintain both position and target
+      controlsRef.current.setLookAt(
+        newCameraPos.x, newCameraPos.y, newCameraPos.z,
+        targetPos.x, targetPos.y, targetPos.z,
+        true
+      );
+    } else {
+      // When not moving, use normal target following
+      controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
+    }
     
     // Adaptive camera distance control
     const currentDistance = controlsRef.current.distance;
