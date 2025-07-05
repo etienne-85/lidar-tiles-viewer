@@ -16,14 +16,18 @@ const TILERANGE = 2;
 
 export const TerrainScene = () => {
   // Calculate initial world position from default tile coordinates
-  const [initialWorldX, initialWorldZ] = tileToWorldPosition(TILECOL, TILEROW);
+  const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILECOL, TILEROW);
+  
+  // Position player slightly inside the patch to avoid boundary issues
+  const initialPlayerX = patchCornerX + 0.5;
+  const initialPlayerZ = patchCornerZ + 0.5;
   
   // Global state management
   const [currentPatch, setCurrentPatch] = useState<string>(`${TILECOL}:${TILEROW}`);
   const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([
-    initialWorldX, 
+    initialPlayerX, 
     0, 
-    initialWorldZ
+    initialPlayerZ
   ]);
 
   // Update currentPatch when player moves
@@ -55,7 +59,7 @@ export const TerrainScene = () => {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <Canvas
-        camera={{ position: [initialWorldX, 20, initialWorldZ + 30], fov: 60 }}
+        camera={{ position: [initialPlayerX, 20, initialPlayerZ + 30], fov: 60 }}
         style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
       >
         <Player position={playerPosition} onPositionChange={setPlayerPosition} />

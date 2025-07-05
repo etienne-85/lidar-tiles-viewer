@@ -11,7 +11,7 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
   // Parse tile coordinates from patchId
   const [tileCol, tileRow] = patchId.split(':').map(Number);
   
-  // Convert tile coordinates to world position
+  // Convert tile coordinates to world position (corner of patch)
   const [worldX, worldZ] = tileToWorldPosition(tileCol, tileRow);
 
   // Use hook-based texture system
@@ -33,9 +33,9 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
     let vertexIndex = 0;
     for (let z = 0; z <= segments; z++) {
       for (let x = 0; x <= segments; x++) {
-        // Calculate local coordinates relative to patch center
-        const localX = (x / segments) * PATCH_SIZE - PATCH_SIZE / 2;
-        const localZ = (z / segments) * PATCH_SIZE - PATCH_SIZE / 2;
+        // Calculate local coordinates from 0 to PATCH_SIZE (corner-based)
+        const localX = (x / segments) * PATCH_SIZE;
+        const localZ = (z / segments) * PATCH_SIZE;
         
         // Sample height at absolute world position
         const worldPosX = worldX + localX;
@@ -50,7 +50,7 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
         // Set UVs
         uvs[vertexIndex * 2] = x / segments;
         // FIX: to match triangles rewinding order 
-        uvs[vertexIndex * 2 + 1] = 1 - (z / segments)
+        uvs[vertexIndex * 2 + 1] = 1 - (z / segments);
         
         vertexIndex++;
       }
