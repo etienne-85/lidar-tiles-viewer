@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { getTerrainHeight, tileToWorldPosition } from './utils/grid';
 import { usePatchProceduralTexture } from './hooks/usePatchProceduralTexture';
@@ -9,8 +9,8 @@ interface TerrainPatchProps {
     patchId: string;
 }
 
-export function TerrainPatch({ patchId }: TerrainPatchProps) {
-    console.log('TerrainPatch render');
+function TerrainPatch({ patchId }: TerrainPatchProps) {
+    console.log('TerrainPatch render for:', patchId);
 
     // Parse tile coordinates from patchId
     const [tileCol, tileRow] = patchId.split(':').map(Number);
@@ -96,3 +96,7 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
         </mesh>
     );
 }
+
+// Export memoized version to prevent unnecessary re-renders
+export const MemoizedTerrainPatch = React.memo(TerrainPatch);
+export { MemoizedTerrainPatch as TerrainPatch };

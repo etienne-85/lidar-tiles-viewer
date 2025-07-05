@@ -187,8 +187,8 @@ const finalTexture = patchTexture || proceduralTexture;
 
 ### Final Step 
 ***list remaining bugs, refactoring tasks, improvements, optimizations,  ... here***
-- [x] investigate infinite rerendering loop even when scene is static
-- [ ] check for abnormal rerender when player is moving
+- [x] fix infinite rerendering loop even when scene is static
+- [x] fix prevent patch rerender when patchid doesn't change
 
 ## Final Result
 - IGN satellite imagery on all terrain patches

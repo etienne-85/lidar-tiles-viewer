@@ -30,15 +30,15 @@ export const TerrainScene = () => {
 
   // Update currentPatch when player moves
   useEffect(() => {
-        const newPatch = calculateCurrentPatch(playerPosition);
+    const newPatch = calculateCurrentPatch(playerPosition);
     if (newPatch !== currentPatch) {
       setCurrentPatch(newPatch);
     }
-  }, [playerPosition, currentPatch]);
+  }, [playerPosition]);
 
   // Optimized patch polling - only when currentPatch changes
   const visiblePatchIds = usePatchPolling(currentPatch, TILE_RANGE);
-
+  
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <Canvas
