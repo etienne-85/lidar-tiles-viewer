@@ -15,7 +15,7 @@ export function Player({ position, onPositionChange }: PlayerProps) {
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
   const targetDistance = useRef(20); // Target camera distance
   const isZooming = useRef(false);
-  const zoomTimeout = useRef<NodeJS.Timeout | null>(null);
+  const zoomTimeout = useRef<any>(null);
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
