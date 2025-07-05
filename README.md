@@ -4,16 +4,14 @@
 
 ### Stage 1: Dynamic patch based terrain**  ✅ **COMPLETE**
 
-![overview](./docs/images/stage1.png)
-
-### Stage 2: Satellite imagery tiles integration 
+### Stage 2: Satellite imagery tiles integration ✅ **COMPLETE**
 
 ### Stage 3: LIDAR data tiles integration
 
 
 ## Results
 
-
+![overview](./docs/images/stage2.png)
 
 
 
