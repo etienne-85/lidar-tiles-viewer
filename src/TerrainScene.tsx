@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { Player } from './Player';
 import { TerrainPatch } from './TerrainPatch';
+import { OverlayUI } from './UI/Overlay';
 import { usePatchPolling } from './hooks/usePatchPolling';
 import { useImageryTiles } from './hooks/useImageryTiles';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
@@ -66,6 +67,12 @@ export const TerrainScene = () => {
           <TerrainPatch key={patchId} patchId={patchId} />
         ))}
       </Canvas>
+      
+      {/* UI Overlay - positioned outside Canvas */}
+      <OverlayUI 
+        playerPosition={playerPosition} 
+        currentPatch={currentPatch} 
+      />
     </div>
   );
 };
