@@ -7,26 +7,25 @@ import { OverlayUI } from './UI/Overlay';
 import { usePatchPolling } from './hooks/usePatchPolling';
 import { useImageryTiles } from './hooks/useImageryTiles';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
+import { TILE_RANGE, TILE_SIZE } from './utils/constants';
 
-// Default tile coordinates
-const TILECOL = 0;
-const TILEROW = 0;
-// Number of patches showed around player
-const TILERANGE = 2; 
+// Default start tile 
+const TILE_COL = 0;
+const TILE_ROW = 0;
 
 export const TerrainScene = () => {
   // Calculate initial world position from default tile coordinates
-  const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILECOL, TILEROW);
-  
+  const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILE_COL, TILE_ROW);
+
   // Position player slightly inside the patch to avoid boundary issues
-  const initialPlayerX = patchCornerX + 0.5;
-  const initialPlayerZ = patchCornerZ + 0.5;
-  
+  const initialPlayerX = patchCornerX + TILE_SIZE / 2;
+  const initialPlayerZ = patchCornerZ + TILE_SIZE / 2;
+
   // Global state management
-  const [currentPatch, setCurrentPatch] = useState<string>(`${TILECOL}:${TILEROW}`);
+  const [currentPatch, setCurrentPatch] = useState<string>(`${TILE_COL}:${TILE_ROW}`);
   const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([
-    initialPlayerX, 
-    0, 
+    initialPlayerX,
+    0,
     initialPlayerZ
   ]);
 
@@ -39,7 +38,7 @@ export const TerrainScene = () => {
   }, [playerPosition, currentPatch]);
 
   // Optimized patch polling - only when currentPatch changes
-  const visiblePatchIds = usePatchPolling(currentPatch, TILERANGE);
+  const visiblePatchIds = usePatchPolling(currentPatch, TILE_RANGE);
 
   // TEMPORARY: Test tile fetching alongside existing system
   const testTileTexture = useImageryTiles(currentPatch);
@@ -71,11 +70,11 @@ export const TerrainScene = () => {
           <TerrainPatch key={patchId} patchId={patchId} />
         ))}
       </Canvas>
-      
+
       {/* UI Overlay - positioned outside Canvas */}
-      <OverlayUI 
-        playerPosition={playerPosition} 
-        currentPatch={currentPatch} 
+      <OverlayUI
+        playerPosition={playerPosition}
+        currentPatch={currentPatch}
       />
     </div>
   );

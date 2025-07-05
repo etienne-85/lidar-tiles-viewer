@@ -1,10 +1,10 @@
-export const PATCH_SIZE = 100;
+import { TILE_SIZE } from "./constants";
 
 // Convert grid coordinates to world position
 export function gridToWorld(gridX: number, gridZ: number): { worldX: number; worldZ: number } {
   return {
-    worldX: gridX * PATCH_SIZE,
-    worldZ: gridZ * PATCH_SIZE
+    worldX: gridX * TILE_SIZE,
+    worldZ: gridZ * TILE_SIZE
   };
 }
 
@@ -17,15 +17,15 @@ export function getTerrainHeight(worldX: number, worldZ: number): number {
 
 // Convert world position to tile coordinates
 export function worldToTilePosition(worldX: number, worldZ: number): [number, number] {
-  const tileCol = Math.floor(worldX / PATCH_SIZE);
-  const tileRow = Math.floor(worldZ / PATCH_SIZE);
+  const tileCol = Math.floor(worldX / TILE_SIZE);
+  const tileRow = Math.floor(worldZ / TILE_SIZE);
   return [tileCol, tileRow];
 }
 
 // Convert tile coordinates to world position
 export function tileToWorldPosition(tileCol: number, tileRow: number): [number, number] {
-  const worldX = tileCol * PATCH_SIZE;
-  const worldZ = tileRow * PATCH_SIZE;
+  const worldX = tileCol * TILE_SIZE;
+  const worldZ = tileRow * TILE_SIZE;
   return [worldX, worldZ];
 }
 
