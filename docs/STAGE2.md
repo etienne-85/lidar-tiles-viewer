@@ -1,12 +1,30 @@
 # STAGE 2 Satellite Imagery Tile Integration
 
-## Assumptions
+## Specifications
+
+### Assumptions
 - 1:1 correspondence between terrain patches and satellite tiles
 - **Tile service** Use French IGN WMTS with TileMatrix=19 (zoom level 19)
+
+### UI System Specifications
+
+**Design Requirements**:
+- **Non-intrusive**: Semi-transparent background, positioned to avoid gameplay interference
+- **Expandable**: Collapsible panels for different information categories
+- **Readable**: High contrast text, appropriate font sizes
+- **Responsive**: Updates in real-time with game state changes
+
+**Information Panels**:
+- **Position**: Player coordinates, current patch, tile calculations
+- **Performance**: FPS
+- **Controls**: Keyboard shortcuts, toggle options
+
+
 
 ### Architecture Changes
 - **Coordinate system**: Use WMTS tile coordinates (tileCol:tileRow) as primary patch identifiers
 - **State management**: Global currentPatch state tracking for optimized patch polling
+- **UI System**: Global overlay UI for real-time information display
 
 ### Component Modifications
 
@@ -14,6 +32,7 @@
 - **NEW**: `currentPatch` state with `tileCol:tileRow` format
 - **NEW**: Watch `playerPosition` changes to update `currentPatch` when crossing patch boundaries
 - **NEW**: Call `usePatchPolling` only when `currentPatch` changes (optimization)
+- **NEW**: Integrate UI overlay system
 
 **TerrainPatch (Texture System Refactor)**
 - **NEW**: Use texture hook for patch-specific textures
@@ -23,16 +42,18 @@
 - **Output**: Array of visible patchIds in format `"tileCol:tileRow"`
 - **Behavior**: Only recalculates when currentPatch changes (not every frame)
 
-**`utils/grid.ts`**
-
-Added utilities
-```typescript
-export function calculateCurrentPatch(playerPosition: [number, number, number]): string;
-export function tileToWorldPosition(tileCol: number, tileRow: number): [number, number];
-export function worldToTilePosition(worldX: number, worldZ: number): [number, number];
-```
-
 ### New Components
+
+**components/UI/OverlayUI.tsx**
+```typescript
+interface OverlayUIProps {
+  playerPosition: [number, number, number];
+  currentPatch: string;
+}
+// Fixed position overlay with multiple information panels
+// Expandable/collapsible sections
+// Semi-transparent background with readable text
+```
 
 **hooks/usePatchProceduralTexture.tsx**
 ```typescript
@@ -95,7 +116,34 @@ function usePatchProceduralTexture(patchId: string): THREE.CanvasTexture {
 
 **Expected result**: Player spawns at patch labeled "tileCol:tileRow"
 
-### STEP #2: Basic useImageryTiles Hook ⏳ **NEXT**
+### STEP #1.5: UI System Foundation ⏳ **NEXT**
+
+**OverlayUI Component**:
+```typescript
+// Multi-panel overlay system
+// Position Panel: Player coordinates, current patch
+// Performance Panel: FPS
+// Controls Panel: Toggle visibility, expand/collapse sections
+// Styling: Semi-transparent, readable, non-intrusive
+```
+
+**TerrainScene UI Integration**:
+```typescript
+// Add OverlayUI component outside Canvas
+// Pass real-time state data
+// Position as fixed overlay
+// Handle UI state management
+```
+
+**Features**:
+- **Position tracking**: Real-time player coordinates and patch info
+- **Performance monitoring**: FPS counter,
+- **Expandable sections**: Collapsible panels for different info types
+- **Toggle visibility**: Show/hide overlay with keyboard shortcut
+
+**Expected result**: Professional overlay UI showing real-time game state information
+
+### STEP #2: Basic useImageryTiles Hook ✅ **COMPLETE** 
 
 **New hook implementation**:
 ```typescript
@@ -143,9 +191,4 @@ const finalTexture = patchTexture || proceduralTexture;
 
 ## Expected Final Result
 - IGN satellite imagery on all terrain patches
-
-## Key Technical Decisions
-- **Initial location**: Ask "tileCol:tileRow" as spawn point
-- **State optimization**: currentPatch-based patch polling
-- **Fallback strategy**: Procedural textures during tile loading
-- **Performance baseline**: Start with current 32x32 geometry
+- UI overlay 
