@@ -23,6 +23,15 @@
 - **Output**: Array of visible patchIds in format `"tileCol:tileRow"`
 - **Behavior**: Only recalculates when currentPatch changes (not every frame)
 
+**`utils/grid.ts`**
+
+Added utilities
+```typescript
+export function calculateCurrentPatch(playerPosition: [number, number, number]): string;
+export function tileToWorldPosition(tileCol: number, tileRow: number): [number, number];
+export function worldToTilePosition(worldX: number, worldZ: number): [number, number];
+```
+
 ### New Components
 
 **hooks/usePatchProceduralTexture.tsx**
@@ -45,6 +54,8 @@ function useImageryTiles(patchId: string): THREE.Texture | null;
 ## Incremental Implementation Steps
 
 ### STEP #1: Global State Refactor ⏳ **NEXT**
+
+***NOTE: tileCol, tileRow default value must be provided***
 
 **TerrainScene modifications**:
 ```typescript
@@ -124,35 +135,14 @@ const finalTexture = patchTexture || proceduralTexture;
 
 **Expected result**: All patches display satellite imagery with procedural fallback
 
-### STEP #4: Coordinate System Integration ⏳ **PENDING**
 
-**New utilities**: `utils/tileSystem.ts`
-```typescript
-export function calculateCurrentPatch(playerPosition: [number, number, number]): string;
-export function tileToWorldPosition(tileCol: number, tileRow: number): [number, number];
-export function worldToTilePosition(worldX: number, worldZ: number): [number, number];
-```
-
-**Updated grid system**: Use tile coordinates throughout
-
-### STEP #5: Performance Optimization ⏳ **PENDING**
-
-**Optimizations**:
-- Tile caching to avoid re-fetching
-- Preloading adjacent tiles
-- Error handling for failed tile loads
-- Loading state management
 
 ### Final Step 
 ***TODO: list remaining bugs, refactoring tasks, improvements, optimizations,  ... here***
 
 
 ## Expected Final Result
-- Real French IGN satellite imagery on all terrain patches
-- Perfect alignment between satellite tiles and terrain geometry
-- Optimized patch polling (only when crossing patch boundaries)
-- Seamless integration with existing player movement
-- Robust error handling and loading states
+- IGN satellite imagery on all terrain patches
 
 ## Key Technical Decisions
 - **Initial location**: Ask "tileCol:tileRow" as spawn point
