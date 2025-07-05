@@ -33,17 +33,19 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
     let vertexIndex = 0;
     for (let z = 0; z <= segments; z++) {
       for (let x = 0; x <= segments; x++) {
-        // Calculate world coordinates
-        const worldPosX = worldX + (x / segments) * PATCH_SIZE - PATCH_SIZE / 2;
-        const worldPosZ = worldZ + (z / segments) * PATCH_SIZE - PATCH_SIZE / 2;
+        // Calculate local coordinates relative to patch center
+        const localX = (x / segments) * PATCH_SIZE - PATCH_SIZE / 2;
+        const localZ = (z / segments) * PATCH_SIZE - PATCH_SIZE / 2;
         
-        // Calculate height at this world position
-        const height = getTerrainHeight(worldPosX, worldPosZ)
+        // Sample height at absolute world position
+        const worldPosX = worldX + localX;
+        const worldPosZ = worldZ + localZ;
+        const height = getTerrainHeight(worldPosX, worldPosZ);
         
-        // Set position (X, Y, Z) - Y is up
-        positions[vertexIndex * 3] = worldPosX;
+        // Set position using local coordinates (X, Y, Z) - Y is up
+        positions[vertexIndex * 3] = localX;
         positions[vertexIndex * 3 + 1] = height;
-        positions[vertexIndex * 3 + 2] = worldPosZ;
+        positions[vertexIndex * 3 + 2] = localZ;
         
         // Set UVs
         uvs[vertexIndex * 2] = x / segments;
@@ -80,7 +82,7 @@ export function TerrainPatch({ patchId }: TerrainPatchProps) {
   }, [patchId, worldX, worldZ]);
 
   return (
-    <mesh position={[0, 0, 0]} geometry={geometry}>
+    <mesh position={[worldX, 0, worldZ]} geometry={geometry}>
       <meshStandardMaterial map={patchTexture} wireframe={false} side={THREE.DoubleSide} />
     </mesh>
   );
