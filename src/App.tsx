@@ -1,34 +1,69 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
+import { useState, useEffect } from 'react';
+import { TerrainScene } from './TerrainScene';
+import { OverlayUI } from './UI/Overlay';
+import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
+import { TILE_SIZE } from './utils/constants';
 import './App.css';
 
+// Default start tile 
+const TILE_COL = 0;
+const TILE_ROW = 0;
+
 function App() {
-  const [count, setCount] = useState(0);
+  // Calculate initial world position from default tile coordinates
+  const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILE_COL, TILE_ROW);
+
+  // Position player slightly inside the patch to avoid boundary issues
+  const initialPlayerX = patchCornerX + TILE_SIZE / 2;
+  const initialPlayerZ = patchCornerZ + TILE_SIZE / 2;
+
+  // Global state management
+  const [currentPatch, setCurrentPatch] = useState<string>(`${TILE_COL}:${TILE_ROW}`);
+  const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([
+    initialPlayerX,
+    0,
+    initialPlayerZ
+  ]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  // Update currentPatch when player moves
+  useEffect(() => {
+    const newPatch = calculateCurrentPatch(playerPosition);
+    if (newPatch !== currentPatch) {
+      setCurrentPatch(newPatch);
+    }
+  }, [playerPosition]);
+
+  const handleFileLoaded = (file: File) => {
+    setSelectedFile(file);
+    setFileError(null);
+    console.log('File loaded:', file.name, file.size);
+  };
+
+  const handleFileError = (error: string) => {
+    setFileError(error);
+    setSelectedFile(null);
+    console.error('File error:', error);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
+      <TerrainScene 
+        playerPosition={playerPosition} 
+        onPlayerPositionChange={setPlayerPosition}
+        currentPatch={currentPatch}
+      />
+      
+      <OverlayUI
+        playerPosition={playerPosition}
+        currentPatch={currentPatch}
+        onFileLoaded={handleFileLoaded}
+        onFileError={handleFileError}
+        selectedFile={selectedFile}
+        fileError={fileError}
+      />
+    </div>
   );
 }
 

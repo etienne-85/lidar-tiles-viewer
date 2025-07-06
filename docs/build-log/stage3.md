@@ -159,11 +159,11 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 - Decide about efficient data format to store point cloud data in `LidarPointCloud`
 
 **Tasks:**
-- Task 1: Create file import UI with drag-and-drop support
-- Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
-- Task 2B: Answer pending questions to decide about `LidarPointCloud` data format.
-- Task 2C: Finish implementation with efficient point cloud data storing and access
-- Task 3: Display file metadata and basic statistics in sidebar
+- [x] Task 1: Create file import UI with drag-and-drop support 
+- [ ] Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
+- [ ] Task 2B: Answer pending questions to decide about `LidarPointCloud` data format.
+- [ ] Task 2C: Finish implementation with efficient point cloud data storing and access
+- [ ] Task 3: Display file metadata and basic statistics in sidebar
 
 **Success Criteria:**
 - Can load and parse LAZ file 
@@ -177,9 +177,9 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 - Integration with `TerrainScene`
 
 **Tasks:**
-- Task 1: Create `PointCloudRenderer` component using R3F InstancedPoints
-- Task 2: Render all points from `LidarPointCloud` without filtering
-- Task 3: Add `PointCloudRenderer` to `TerrainScene` component
+- [ ] Task 1: Create `PointCloudRenderer` component using R3F InstancedPoints
+- [ ] Task 2: Render all points from `LidarPointCloud` without filtering
+- [ ] Task 3: Add `PointCloudRenderer` to `TerrainScene` component
 
 **Success Criteria:**
 - Point cloud renders in 3D scene alongside terrain
@@ -200,11 +200,11 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 - Enhanced `OverlayUI` with point cloud controls
 
 **Tasks:**
-- Task 1: Add basic filtering methods to `LidarPointCloud` (by classification)
-- Task 2: Add point selection capability to `PointCloudRenderer` using raycasting
-- Task 3: Create control panel for classification-based filtering
-- Task 4: Implement info panel showing selected point details
-- Task 5: Add point cloud UI controls to `OverlayUI`
+- [ ] Task 1: Add basic filtering methods to `LidarPointCloud` (by classification)
+- [ ] Task 2: Add point selection capability to `PointCloudRenderer` using raycasting
+- [ ] Task 3: Create control panel for classification-based filtering
+- [ ] Task 4: Implement info panel showing selected point details
+- [ ] Task 5: Add point cloud UI controls to `OverlayUI`
 
 **Success Criteria:**
 - Can select individual points and see their properties (coordinates, classification, intensity)
