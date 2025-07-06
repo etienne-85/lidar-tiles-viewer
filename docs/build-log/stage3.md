@@ -30,13 +30,17 @@ The longer-term goal is to support LIDAR data fetching similar to satellite imag
 To keep the implementation simple for now and avoid unnecessary complexity, the current technical choice is to use existing R3F components such as `InstancedPoints`.
 A custom full-GPU implementation is planned for a later stage.
 
-### Coordinate System
+### Misc
+***Coordinate System***
 - LIDAR coordinates will be aligned with existing terrain coordinate system
 - Coordinate transformation handled within `LidarPointCloud` class
 
-### Error Handling
+***Error Handling***
 - File format validation
 - Parsing error handling
+
+### Pending questions
+- how shoud point cloud data be stored in LidarPointCloud after LAZ file parsing?
 
 ## Components Proposal
 
@@ -143,28 +147,30 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 
 ## Implementation Steps
 
-### **STEP #1: Basic Point Cloud Class and File Import**
+### **STEP #1: LAZ file loading and parsinge** (Revised)
 
 **Components:**
+- `FileImporter.tsx` 
 - `LidarPointCloud.ts`
-- `FileImporter.tsx`
 - `Sidebar.tsx`
 
+**Pending questions prior to implementation:**
+- Understand how points are stored in original file format. What data is being stored per point?
+- Decide about efficient data format to store point cloud data in `LidarPointCloud`
+
 **Tasks:**
-- Task 1: Implement `LidarPointCloud` class with basic LAZ parsing capabilities
-- Task 2: Create file import UI with drag-and-drop support
+- Task 1: Create file import UI with drag-and-drop support
+- Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
+- Task 2B: Answer pending questions to decide about `LidarPointCloud` data format.
+- Task 2C: Finish implementation with efficient point cloud data storing and access
 - Task 3: Display file metadata and basic statistics in sidebar
 
 **Success Criteria:**
-- Can import LAZ file and see parsed metadata
-- Point cloud data is accessible through unified interface
-- Basic file information displayed in sidebar (point count, classifications, bounds)
+- Can load and parse LAZ file 
+- Efficient point cloud data storing and access
+- Can see relevant info about loaded data
 
-**Out of Scope:**
-- Filtering, spatial queries, LOD optimization
-- Performance optimization for large datasets
-
-### **STEP #2: Basic Point Cloud Visualization**
+### **STEP #2: Point Cloud Rendering**
 
 **Components:**
 - `PointCloudRenderer.tsx`
