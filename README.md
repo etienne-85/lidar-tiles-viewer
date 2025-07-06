@@ -14,7 +14,7 @@ use point cloud to shape terrain height
 
 ## Results
 
-![overview](./docs/images/stage2.png)
+![overview](./docs/build-log/images/stage2.png)
 
 
 

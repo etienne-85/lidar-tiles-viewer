@@ -194,6 +194,7 @@ const finalTexture = patchTexture || proceduralTexture;
 - IGN satellite imagery on all terrain patches
 - UI overlay 
 
-![overview](./docs/images/stage2.png)
+![overview](./images/stage2.png)
 
 ### Comments
+- rescoped with minimal UI integration
