@@ -1,26 +1,56 @@
-# STAGE N: ***brief description**
+# STAGE X: ***brief description***
+
+## Context
+***provide short description about what this part is about and any background information***
+
+## Requirements
+
+**Business Needs**
+
+***list high level requirements, business needs, success criteria...***
 
 ## Specs
-***list requirements, components specifications, architectural changes,... ***
+### Technical specifications
+***...***
 
-### Requirements, business needs
 
 ### Components specifications
-***components roles and responsabilities, input/output interfaces..***
+***list components roles and responsabilities, input/output interfaces..***
 
-### Architectural
-***how this part fits into current architecture, how dependant is it from rest of the project, what impact does it have on other components***
+#### MyComponenet
+- **File**: `src/MyComponent.ts`
+- **Role**: ***role, aim, purpose, responsabilities***
+- **input**: 
+- **output**: 
+- **Suggested interface**:
+```typescript
+interface MyComponent {
+  
+}
+```
 
-List:
-- dependancies toward other components
-- components interactions
-- any impact/changes on other components
+## Architectural
 
-### Success Criteria
-***clear, measurable outcomes to determine when the stage is complete***
+**dependancies**
+
+***how dependant is it from rest of the project: list dependancies toward other components***
+
+**interactions**
+
+***interactions between components***
+
+**impact**
+
+***what impact does it have on other components: does it require any changes on other components***
+
+
+***integration***
+
+***how this part fits within current architecture: how this componennt will be used***
+
 
 ## Incremental Implementation Steps
-***list all incremental building steps here... ***
+***list all incremental building steps here...***
 
 ### STEP #1: [Step Description]
 **Dependencies:**
@@ -50,21 +80,8 @@ List:
 
 
 
-## Testing & Validation
-### Functional Testing
-***Core features work as specified***
-
-### Integration Testing
-***Components interact correctly***
-
-### Performance Testing
-***Meets performance requirements***
-
-### User Acceptance
-***Meets business needs***
-
 ### Final Step 
-***list remaining bugs, refactoring tasks, improvements, optimizations, required to complete current stage  ... here***
+***At the end of incremental building plan, list remaining bugs, refactoring tasks, improvements, optimizations, required to complete current stage  ... ***
 
 ## Result & Comments
-*** provide screenshots and final comments here***
+***provide screenshots and final comments here***
