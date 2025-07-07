@@ -7,8 +7,8 @@ import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
 
 // Default start tile 
-const TILE_COL = 0;
-const TILE_ROW = 0;
+const TILE_COL = 268409;
+const TILE_ROW = 181774;
 
 function App() {
   // Calculate initial world position from default tile coordinates

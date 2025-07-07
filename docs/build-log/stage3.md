@@ -40,7 +40,24 @@ A custom full-GPU implementation is planned for a later stage.
 - Parsing error handling
 
 ### Pending questions
-- how shoud point cloud data be stored in LidarPointCloud after LAZ file parsing?
+- [x] how shoud point cloud data be stored in LidarPointCloud after LAZ file parsing?
+
+## Suggested Data Model
+
+```typescript
+interface PointCloudData {
+  // A flat array [x1, y1, z1, x2, y2, z2, ...] for direct use in R3F/Three.js
+  positions: Float32Array; 
+  
+  // An array holding the classification code for each point
+  classifications: Uint8Array; 
+  
+  // Arrays for other attributes you might need for filtering or display
+  intensities: Uint16Array;
+  gpsTimes: Float64Array;
+  // You can add more arrays for other attributes like return number if needed
+}
+```
 
 ## Components Proposal
 
@@ -51,6 +68,7 @@ A custom full-GPU implementation is planned for a later stage.
 - **Interface**:
 ```typescript
 class LidarPointCloud {
+  private pointData: PointCloudData;
   static fromLAZFile(file: File): Promise<LidarPointCloud>
   static fromLASFile(file: File): Promise<LidarPointCloud>
   
@@ -126,6 +144,7 @@ interface SidebarProps {
 }
 ```
 
+
 ## Architectural Integration
 
 ### Dependencies
@@ -155,14 +174,39 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 - `Sidebar.tsx`
 
 **Pending questions prior to implementation:**
-- Understand how points are stored in original file format. What data is being stored per point?
-- Decide about efficient data format to store point cloud data in `LidarPointCloud`
+
+-
 
 **Tasks:**
 - [x] Task 1: Create file import UI with drag-and-drop support 
 - [x] Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
-- [ ] Task 2B: Answer pending questions to decide about `LidarPointCloud` data format.
-- [ ] Task 2C: Finish implementation with efficient point cloud data storing and access
+- [x] Question 1: Understand how points are stored in original file format. What data is being stored per point?
+
+From our previous debugging, we know your files use **Point Data Record Format 6**. Here is the data stored for *each individual point* in that format:
+
+| Attribute | Data Type | Size (Bytes) | Description |
+| :--- | :--- | :--- | :--- |
+| **X, Y, Z** | `Int32` | 4 each (12 total) | Raw integer coordinates of the point. |
+| **Intensity** | `Uint16` | 2 | The pulse return magnitude. |
+| **Return Info** | `Bit field` | 1 | A single byte containing Return Number, Number of Returns, etc. |
+| **Classification** | `Uint8` | 1 | The classification of the point (e.g., 2=Ground, 5=Vegetation). |
+| **Scan Angle Rank** | `Int8` | 1 | Angle of the laser pulse. |
+| **User Data** | `Uint8` | 1 | Can be used for custom purposes. |
+| **Point Source ID**| `Uint16` | 2 | ID of the flight line this point came from. |
+| **GPS Time** | `Float64` | 8 | The GPS timestamp when the point was recorded. |
+| **Total Size per Point**| | **34 Bytes** | |
+
+**Crucially**, the raw X, Y, and Z values are integers. To get the real-world coordinates, you must apply the scale factors and offsets from the header:
+
+  - `Real_X = (Raw_X * X_Scale_Factor) + X_Offset`
+  - `Real_Y = (Raw_Y * Y_Scale_Factor) + Y_Offset`
+  - `Real_Z = (Raw_Z * Z_Scale_Factor) + Z_Offset`
+
+- [x] Question 2: Decide about efficient data format to store point cloud data in `LidarPointCloud`
+
+see `PointCloudData` interface added to Data Model section 
+
+- [ ] Task 2B: After determining efficient way of storing point cloud data, finish implementation with efficient point cloud data storing and access
 - [ ] Task 3: Display file metadata and basic statistics in sidebar
 
 **Success Criteria:**
