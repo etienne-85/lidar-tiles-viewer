@@ -31,6 +31,12 @@ interface LASHeader {
   minY: number;
   maxZ: number;
   minZ: number;
+  // New LAS 1.4 fields
+  startOfWaveformDataPacketRecord: bigint;
+  startOfFirstExtendedVariableLengthRecord: bigint;
+  numberOfExtendedVariableLengthRecords: number;
+  numberOfPointRecords_1_4: bigint; // Use BigInt for 64-bit integers
+  numberOfPointsByReturn_1_4: bigint[];
 }
 
 // Metadata interface for public access
@@ -143,16 +149,14 @@ export class LidarPointCloud {
   private static parseLASHeader(data: ArrayBuffer): LASHeader {
     const view = new DataView(data);
     const decoder = new TextDecoder('ascii');
-    
-    // Read file signature
+  
     const fileSignature = decoder.decode(new Uint8Array(data, 0, 4));
-    
     if (fileSignature !== 'LASF') {
       throw new Error('Invalid LAS file signature');
     }
-
-    // Parse header fields according to LAS specification
-    const header: LASHeader = {
+  
+    // Base header object
+    const header: Partial<LASHeader> = {
       fileSignature,
       fileSourceId: view.getUint16(4, true),
       globalEncoding: view.getUint16(6, true),
@@ -166,8 +170,9 @@ export class LidarPointCloud {
       headerSize: view.getUint16(94, true),
       offsetToPointData: view.getUint32(96, true),
       numberOfVariableLengthRecords: view.getUint32(100, true),
-      pointDataRecordFormat: view.getUint8(104) & 0x7F, // On masque le bit de compression
+      pointDataRecordFormat: view.getUint8(104) & 0x7F, // Keep the compression bit mask
       pointDataRecordLength: view.getUint16(105, true),
+      // Read legacy point count first
       numberOfPointRecords: view.getUint32(107, true),
       numberOfPointsByReturn: [
         view.getUint32(111, true),
@@ -189,8 +194,24 @@ export class LidarPointCloud {
       maxZ: view.getFloat64(211, true),
       minZ: view.getFloat64(219, true)
     };
-
-    return header;
+  
+    // ✨ --- START OF FIX --- ✨
+    // Check if this is a LAS 1.4 file
+    if (header.versionMajor === 1 && header.versionMinor === 4 && header.headerSize >= 375) {
+      // For LAS 1.4, the true number of points is a 64-bit integer at offset 247
+      const numPoints64 = view.getBigUint64(247, true);
+      header.numberOfPointRecords_1_4 = numPoints64;
+  
+      // Overwrite the legacy field with the correct value so the rest of the code works.
+      // We convert BigInt to Number. This is safe unless you have more than 2^53 points.
+      header.numberOfPointRecords = Number(numPoints64);
+  
+      // You could also parse the 1.4 Number of Points by Return here if needed
+      // header.numberOfPointsByReturn_1_4 = ...
+    }
+    // ✨ --- END OF FIX --- ✨
+  
+    return header as LASHeader;
   }
 
   /**
