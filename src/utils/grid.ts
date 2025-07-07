@@ -12,7 +12,7 @@ export function gridToWorld(gridX: number, gridZ: number): { worldX: number; wor
 export function getTerrainHeight(worldX: number, worldZ: number): number {
   const amplitude = 10;
   const frequency = 0.05;
-  return amplitude * Math.sin(worldX * frequency) * Math.cos(worldZ * frequency);
+  return 0//amplitude * Math.sin(worldX * frequency) * Math.cos(worldZ * frequency);
 }
 
 // Convert world position to tile coordinates

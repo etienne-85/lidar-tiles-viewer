@@ -3,6 +3,7 @@ import { TerrainScene } from './TerrainScene';
 import { OverlayUI } from './UI/Overlay';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
 import { TILE_SIZE } from './utils/constants';
+import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
 
 // Default start tile 
@@ -26,6 +27,8 @@ function App() {
   ]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   // Update currentPatch when player moves
   useEffect(() => {
@@ -34,6 +37,32 @@ function App() {
       setCurrentPatch(newPatch);
     }
   }, [playerPosition]);
+
+  // Process file with LidarPointCloud when selectedFile changes
+  useEffect(() => {
+    if (selectedFile) {
+      setIsProcessingFile(true);
+      setFileError(null);
+      
+      console.log('Processing file:', selectedFile.name);
+      
+      LidarPointCloud.fromLAZFile(selectedFile)
+        .then(loadedPointCloud => {
+          setPointCloud(loadedPointCloud);
+          setIsProcessingFile(false);
+          console.log('Point cloud loaded successfully:', loadedPointCloud.getMetadata());
+        })
+        .catch(error => {
+          console.error('Failed to load point cloud:', error);
+          handleFileError(error.message);
+          setIsProcessingFile(false);
+          setPointCloud(null);
+        });
+    } else {
+      setPointCloud(null);
+      setIsProcessingFile(false);
+    }
+  }, [selectedFile]);
 
   const handleFileLoaded = (file: File) => {
     setSelectedFile(file);
@@ -44,6 +73,8 @@ function App() {
   const handleFileError = (error: string) => {
     setFileError(error);
     setSelectedFile(null);
+    setPointCloud(null);
+    setIsProcessingFile(false);
     console.error('File error:', error);
   };
 
@@ -62,6 +93,8 @@ function App() {
         onFileError={handleFileError}
         selectedFile={selectedFile}
         fileError={fileError}
+        pointCloud={pointCloud}
+        isProcessingFile={isProcessingFile}
       />
     </div>
   );
