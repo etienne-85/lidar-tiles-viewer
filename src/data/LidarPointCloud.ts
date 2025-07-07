@@ -1,4 +1,4 @@
-import LazPerf from 'laz-perf';
+import { createLazPerf } from 'laz-perf';
 
 // LAS header structure based on LAS specification
 interface LASHeader {
@@ -65,6 +65,9 @@ export class LidarPointCloud {
   private header: LASHeader;
   private decompressedData: ArrayBuffer;
   private metadata: LidarMetadata;
+  private lazPerf: any;
+  private laszip: any;
+  private dataPointer: number;
 
   private constructor(header: LASHeader, decompressedData: ArrayBuffer) {
     this.header = header;
@@ -79,20 +82,36 @@ export class LidarPointCloud {
     try {
       // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
       
       // Create LazPerf instance
-      const lazPerf = new LazPerf();
+      const LazPerf = await createLazPerf();
       
-      // Decompress LAZ to LAS
-      const decompressedData = lazPerf.decompress(new Uint8Array(arrayBuffer));
+      // Create LASZip instance for file reading
+      const laszip = new LazPerf.LASZip();
       
-      // Parse LAS header
-      const header = this.parseLASHeader(decompressedData.buffer);
+      // We need to allocate memory in Emscripten heap
+      const dataPointer = LazPerf._malloc(uint8Array.length);
+      LazPerf.HEAPU8.set(uint8Array, dataPointer);
+      
+      // Open the LAZ file
+      laszip.open(dataPointer, uint8Array.length);
+      
+      // Parse LAS header from the original LAZ data (header is uncompressed)
+      const header = this.parseLASHeader(arrayBuffer);
       
       // Validate header
       this.validateHeader(header);
       
-      return new LidarPointCloud(header, decompressedData.buffer);
+      // Create point cloud instance
+      const pointCloud = new LidarPointCloud(header, arrayBuffer);
+      
+      // Store LazPerf-related objects for later point extraction
+      pointCloud.lazPerf = LazPerf;
+      pointCloud.laszip = laszip;
+      pointCloud.dataPointer = dataPointer;
+      
+      return pointCloud;
     } catch (error) {
       throw new Error(`Failed to load LAZ file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -275,6 +294,30 @@ export class LidarPointCloud {
    */
   getPointRecordLength(): number {
     return this.header.pointDataRecordLength;
+  }
+
+  /**
+   * Get LazPerf instance (for LAZ files)
+   */
+  getLazPerf(): any {
+    return this.lazPerf;
+  }
+
+  /**
+   * Get LASZip instance (for LAZ files)
+   */
+  getLaszip(): any {
+    return this.laszip;
+  }
+
+  /**
+   * Cleanup method to free allocated memory
+   */
+  cleanup(): void {
+    if (this.lazPerf && this.dataPointer) {
+      this.lazPerf._free(this.dataPointer);
+      this.dataPointer = 0;
+    }
   }
 
   /**
