@@ -80,6 +80,7 @@ function App() {
         playerPosition={playerPosition} 
         onPlayerPositionChange={setPlayerPosition}
         currentPatch={currentPatch}
+        pointCloud={pointCloud}
       />
       
       <OverlayUI
