@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Points, PointMaterial } from '@react-three/drei';
-import { BufferGeometry, BufferAttribute, Color } from 'three';
+import { BufferGeometry, BufferAttribute, Color, Vector3 } from 'three';
 import { LidarPointCloud } from '../data/LidarPointCloud';
+import { transformLidarPositions } from '../utils/grid';
 
 interface PointCloudRendererProps {
   pointCloud: LidarPointCloud;
@@ -18,13 +19,20 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({ pointClo
     // Get bounds from metadata instead of calculating from all points
     const metadata = pointCloud.getMetadata();
     console.log('PointCloudRenderer - Bounds from metadata:', metadata.bounds);
+
+    // Transform LIDAR coordinates to world coordinates
+    
+    // Apply coordinate transformation to all positions
+    // "LHD_FXX_0796_6792_PTS_C_LAMB93_IGN69.copc.laz" → {tileCol: 796, tileRow: 6792}
+    // 796000, 6791000 => 268281, 181562
+    const transformedPositions = transformLidarPositions(positions);
     
     // Create geometry
     const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new BufferAttribute(positions, 3));
-    
+    geometry.setAttribute('position', new BufferAttribute(transformedPositions, 3));
+
     // Create colors based on classification
-    const colorArray = new Float32Array(positions.length); // Same length as positions (x,y,z per point)
+    const colorArray = new Float32Array(transformedPositions.length); // Same length as positions (x,y,z per point)
     const tempColor = new Color();
     
     for (let i = 0; i < classifications.length; i++) {
