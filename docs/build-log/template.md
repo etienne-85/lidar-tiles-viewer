@@ -84,4 +84,19 @@ interface MyComponent {
 ***At the end of incremental building plan, list remaining bugs, refactoring tasks, improvements, optimizations, required to complete current stage  ... ***
 
 ## Result & Comments
+### pitfalls
+`BUG#`
+
+**Issue**: ***oneliner description of the issue***
+
+```
+any relevant logs of the issue (clean logs of unrelated content)
+```
+
+**Cause**: ***oneliner describing what was the root cause***
+
+
+
+**Solution**: ***onliner explaining how issue was fixed***
+### screenshots
 ***provide screenshots and final comments here***

@@ -160,7 +160,7 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 
 **Tasks:**
 - [x] Task 1: Create file import UI with drag-and-drop support 
-- [ ] Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
+- [x] Task 2A: Implement `LidarPointCloud`  LAZ file decompression and basic parsing capabilities (headers and metadata)
 - [ ] Task 2B: Answer pending questions to decide about `LidarPointCloud` data format.
 - [ ] Task 2C: Finish implementation with efficient point cloud data storing and access
 - [ ] Task 3: Display file metadata and basic statistics in sidebar
@@ -236,5 +236,55 @@ Point cloud data will be rendered seamlessly alongside terrain patches.
 ***list remaining bugs, refactoring tasks, improvements, optimizations, required to complete current stage  ... here***
 
 ## Result & Comments
+### Pitfalls
+`BUG#1` 
+
+**Issue**: 
+```
+Failed to load point cloud: Error: Failed to load LAZ file: Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0)
+at LidarPointCloud.fromLAZFile (LidarPointCloud.ts:116:13)
+```
+**Cause**: improperly serving `.wasm`
+
+**Solution**: manual fix to put `.wasm` file in public folder
+
+Of course, here is a recap of the bugs we've solved together.
+
+-----
+
+`BUG#2`
+
+**Issue**:
+
+```
+Failed to load point cloud: Error: Failed to load LAZ file: Unsupported point data record format: 134
+    at LidarPointCloud.fromLAZFile (LidarPointCloud.ts:116:13)
+```
+
+**Cause**: The `pointDataRecordFormat` for compressed LAZ files includes a compression flag, causing the code to read `134` instead of the actual format `6`.
+
+**Solution**: A bitwise mask (`& 0x7F`) was applied to remove the compression flag and isolate the correct point format value.
+
+-----
+
+`BUG#3`
+
+**Issue**:
+
+```
+Failed to load point cloud: Error: Failed to load LAZ file: No point records found in file
+    at LidarPointCloud.fromLAZFile (LidarPointCloud.ts:116:13)
+```
+
+**Cause**: The file was a modern LAS 1.4 file, but the code was reading the point count from an older header location which is `0` in the new specification.
+
+**Solution**: The parser was updated to check for LAS version 1.4 and read the point count from the correct 64-bit field at its new header location.
+
+
+**Cause**: ?
+
+**Solution**: ?
+
+
 ***provide screenshots and final comments here***
 
