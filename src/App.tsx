@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import { TerrainScene } from './TerrainScene';
 import { OverlayUI } from './UI/Overlay';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
-import { TILE_SIZE } from './utils/constants';
+import { TILE_COL, TILE_ROW, TILE_SIZE } from './utils/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
-
-// Default start tile 
-const TILE_COL = 268409;
-const TILE_ROW = 181774;
 
 function App() {
   // Calculate initial world position from default tile coordinates
