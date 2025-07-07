@@ -12,6 +12,13 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({ pointClo
     const positions = pointCloud.getPoints();
     const classifications = pointCloud.getClassifications();
     
+    console.log('PointCloudRenderer - Point count:', positions.length / 3);
+    console.log('PointCloudRenderer - First 10 positions:', positions.slice(0, 30));
+    
+    // Get bounds from metadata instead of calculating from all points
+    const metadata = pointCloud.getMetadata();
+    console.log('PointCloudRenderer - Bounds from metadata:', metadata.bounds);
+    
     // Create geometry
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(positions, 3));
