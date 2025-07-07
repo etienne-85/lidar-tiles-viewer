@@ -31,15 +31,10 @@ interface LASHeader {
   minY: number;
   maxZ: number;
   minZ: number;
-  // New LAS 1.4 fields
-  startOfWaveformDataPacketRecord: bigint;
-  startOfFirstExtendedVariableLengthRecord: bigint;
-  numberOfExtendedVariableLengthRecords: number;
-  numberOfPointRecords_1_4: bigint; // Use BigInt for 64-bit integers
-  numberOfPointsByReturn_1_4: bigint[];
+  numberOfPointRecords_1_4?: bigint;
 }
 
-// Metadata interface for public access
+// Public metadata interface
 export interface LidarMetadata {
   pointCount: number;
   bounds: {
@@ -67,95 +62,150 @@ export interface LidarMetadata {
   };
 }
 
+// Structure of Arrays data format for efficient storage and rendering
+interface PointCloudData {
+  positions: Float32Array;
+  classifications: Uint8Array;
+  intensities: Uint16Array;
+}
+
 export class LidarPointCloud {
   private header: LASHeader;
-  private decompressedData: ArrayBuffer;
   private metadata: LidarMetadata;
-  private lazPerf: any;
-  private laszip: any;
-  private dataPointer: number;
+  private pointData: PointCloudData;
 
-  private constructor(header: LASHeader, decompressedData: ArrayBuffer) {
+  private constructor(header: LASHeader, pointData: PointCloudData) {
     this.header = header;
-    this.decompressedData = decompressedData;
+    this.pointData = pointData;
     this.metadata = this.extractMetadata();
   }
 
-  /**
-   * Factory method to create LidarPointCloud from LAZ file
-   */
   static async fromLAZFile(file: File): Promise<LidarPointCloud> {
+    let lazPerf: any = null;
+    let dataPointer: number = 0;
+    let pointDataPointer: number = 0;
+
     try {
-      // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       
-      // Create LazPerf instance
-      const LazPerf = await createLazPerf();
+      lazPerf = await createLazPerf();
+      const laszip = new lazPerf.LASZip();
       
-      // Create LASZip instance for file reading
-      const laszip = new LazPerf.LASZip();
+      dataPointer = lazPerf._malloc(uint8Array.length);
+      lazPerf.HEAPU8.set(uint8Array, dataPointer);
       
-      // We need to allocate memory in Emscripten heap
-      const dataPointer = LazPerf._malloc(uint8Array.length);
-      LazPerf.HEAPU8.set(uint8Array, dataPointer);
-      
-      // Open the LAZ file
       laszip.open(dataPointer, uint8Array.length);
       
-      // Parse LAS header from the original LAZ data (header is uncompressed)
       const header = this.parseLASHeader(arrayBuffer);
-      
-      // Validate header
       this.validateHeader(header);
       
-      // Create point cloud instance
-      const pointCloud = new LidarPointCloud(header, arrayBuffer);
+      const pointCount = header.numberOfPointRecords;
+      const pointRecordLength = header.pointDataRecordLength;
+
+      // Allocate our final JavaScript TypedArrays
+      const positions = new Float32Array(pointCount * 3);
+      const classifications = new Uint8Array(pointCount);
+      const intensities = new Uint16Array(pointCount);
       
-      // Store LazPerf-related objects for later point extraction
-      pointCloud.lazPerf = LazPerf;
-      pointCloud.laszip = laszip;
-      pointCloud.dataPointer = dataPointer;
+      // Allocate a small buffer in WASM memory for just ONE point
+      pointDataPointer = lazPerf._malloc(pointRecordLength);
+
+      // Create a DataView that we will reuse to read from that WASM buffer
+      const pointView = new DataView(lazPerf.HEAPU8.buffer, pointDataPointer, pointRecordLength);
+
+      // Loop and decompress one point at a time
+      for (let i = 0; i < pointCount; i++) {
+        // Decompress the next point's data into our WASM buffer
+        laszip.getPoint(pointDataPointer);
+
+        // Read attributes directly from the WASM buffer using our DataView
+        // Note: Offsets are for Point Data Record Format 6
+        const rawX = pointView.getInt32(0, true);
+        const rawY = pointView.getInt32(4, true);
+        const rawZ = pointView.getInt32(8, true);
+        const intensity = pointView.getUint16(12, true);
+        const classification = pointView.getUint8(15);
+        
+        // Apply scale and offset
+        positions[i * 3 + 0] = rawX * header.xScaleFactor + header.xOffset;
+        positions[i * 3 + 1] = rawY * header.yScaleFactor + header.yOffset;
+        positions[i * 3 + 2] = rawZ * header.zScaleFactor + header.zOffset;
+        classifications[i] = classification;
+        intensities[i] = intensity;
+      }
       
-      return pointCloud;
+      const pointData: PointCloudData = { positions, classifications, intensities };
+      return new LidarPointCloud(header, pointData);
+
     } catch (error) {
       throw new Error(`Failed to load LAZ file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      // Final cleanup of all allocated WASM memory
+      if (lazPerf) {
+        if (dataPointer) lazPerf._free(dataPointer);
+        if (pointDataPointer) lazPerf._free(pointDataPointer);
+      }
     }
   }
 
-  /**
-   * Factory method to create LidarPointCloud from LAS file
-   */
   static async fromLASFile(file: File): Promise<LidarPointCloud> {
     try {
-      // Read file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
-      
-      // Parse LAS header directly
       const header = this.parseLASHeader(arrayBuffer);
-      
-      // Validate header
       this.validateHeader(header);
       
-      return new LidarPointCloud(header, arrayBuffer);
+      const pointDataBuffer = arrayBuffer.slice(header.offsetToPointData);
+      const pointData = this.parsePointData(header, pointDataBuffer);
+      
+      return new LidarPointCloud(header, pointData);
+
     } catch (error) {
       throw new Error(`Failed to load LAS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  /**
-   * Parse LAS header from binary data
-   */
+  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer): PointCloudData {
+    const pointCount = header.numberOfPointRecords;
+    const pointRecordLength = header.pointDataRecordLength;
+    const view = new DataView(pointDataBuffer);
+
+    const positions = new Float32Array(pointCount * 3);
+    const classifications = new Uint8Array(pointCount);
+    const intensities = new Uint16Array(pointCount);
+
+    for (let i = 0; i < pointCount; i++) {
+      const offset = i * pointRecordLength;
+
+      const rawX = view.getInt32(offset + 0, true);
+      const rawY = view.getInt32(offset + 4, true);
+      const rawZ = view.getInt32(offset + 8, true);
+      const intensity = view.getUint16(offset + 12, true);
+      const classification = view.getUint8(offset + 15);
+
+      const x = rawX * header.xScaleFactor + header.xOffset;
+      const y = rawY * header.yScaleFactor + header.yOffset;
+      const z = rawZ * header.zScaleFactor + header.zOffset;
+
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+      classifications[i] = classification;
+      intensities[i] = intensity;
+    }
+
+    return { positions, classifications, intensities };
+  }
+
   private static parseLASHeader(data: ArrayBuffer): LASHeader {
     const view = new DataView(data);
     const decoder = new TextDecoder('ascii');
-  
+
     const fileSignature = decoder.decode(new Uint8Array(data, 0, 4));
     if (fileSignature !== 'LASF') {
       throw new Error('Invalid LAS file signature');
     }
-  
-    // Base header object
+
     const header: Partial<LASHeader> = {
       fileSignature,
       fileSourceId: view.getUint16(4, true),
@@ -170,9 +220,8 @@ export class LidarPointCloud {
       headerSize: view.getUint16(94, true),
       offsetToPointData: view.getUint32(96, true),
       numberOfVariableLengthRecords: view.getUint32(100, true),
-      pointDataRecordFormat: view.getUint8(104) & 0x7F, // Keep the compression bit mask
+      pointDataRecordFormat: view.getUint8(104) & 0x7F,
       pointDataRecordLength: view.getUint16(105, true),
-      // Read legacy point count first
       numberOfPointRecords: view.getUint32(107, true),
       numberOfPointsByReturn: [
         view.getUint32(111, true),
@@ -194,29 +243,16 @@ export class LidarPointCloud {
       maxZ: view.getFloat64(211, true),
       minZ: view.getFloat64(219, true)
     };
-  
-    // ✨ --- START OF FIX --- ✨
-    // Check if this is a LAS 1.4 file
-    if (header.versionMajor === 1 && header.versionMinor === 4 && header.headerSize >= 375) {
-      // For LAS 1.4, the true number of points is a 64-bit integer at offset 247
+
+    if (header.versionMajor === 1 && header.versionMinor === 4 && header.headerSize >= 375 && view.buffer.byteLength >= 255) {
       const numPoints64 = view.getBigUint64(247, true);
       header.numberOfPointRecords_1_4 = numPoints64;
-  
-      // Overwrite the legacy field with the correct value so the rest of the code works.
-      // We convert BigInt to Number. This is safe unless you have more than 2^53 points.
       header.numberOfPointRecords = Number(numPoints64);
-  
-      // You could also parse the 1.4 Number of Points by Return here if needed
-      // header.numberOfPointsByReturn_1_4 = ...
     }
-    // ✨ --- END OF FIX --- ✨
-  
+
     return header as LASHeader;
   }
 
-  /**
-   * Parse GUID from binary data
-   */
   private static parseGUID(view: DataView, offset: number): string {
     const guid = [];
     for (let i = 0; i < 16; i++) {
@@ -225,30 +261,21 @@ export class LidarPointCloud {
     return guid.join('');
   }
 
-  /**
-   * Validate LAS header
-   */
   private static validateHeader(header: LASHeader): void {
     if (header.versionMajor !== 1) {
       throw new Error(`Unsupported LAS version: ${header.versionMajor}.${header.versionMinor}`);
     }
-
     if (header.pointDataRecordFormat > 10) {
       throw new Error(`Unsupported point data record format: ${header.pointDataRecordFormat}`);
     }
-
     if (header.numberOfPointRecords === 0) {
       throw new Error('No point records found in file');
     }
-
     if (header.headerSize < 227) {
       throw new Error('Invalid header size');
     }
   }
 
-  /**
-   * Extract metadata from header
-   */
   private extractMetadata(): LidarMetadata {
     const creationDate = this.header.creationYear > 0 
       ? `${this.header.creationYear}-${this.header.creationDayOfYear.toString().padStart(3, '0')}`
@@ -257,12 +284,9 @@ export class LidarPointCloud {
     return {
       pointCount: this.header.numberOfPointRecords,
       bounds: {
-        minX: this.header.minX,
-        maxX: this.header.maxX,
-        minY: this.header.minY,
-        maxY: this.header.maxY,
-        minZ: this.header.minZ,
-        maxZ: this.header.maxZ
+        minX: this.header.minX, maxX: this.header.maxX,
+        minY: this.header.minY, maxY: this.header.maxY,
+        minZ: this.header.minZ, maxZ: this.header.maxZ
       },
       pointFormat: this.header.pointDataRecordFormat,
       version: `${this.header.versionMajor}.${this.header.versionMinor}`,
@@ -270,86 +294,28 @@ export class LidarPointCloud {
       systemIdentifier: this.header.systemIdentifier,
       generatingSoftware: this.header.generatingSoftware,
       scaleFactor: {
-        x: this.header.xScaleFactor,
-        y: this.header.yScaleFactor,
-        z: this.header.zScaleFactor
+        x: this.header.xScaleFactor, y: this.header.yScaleFactor, z: this.header.zScaleFactor
       },
       offset: {
-        x: this.header.xOffset,
-        y: this.header.yOffset,
-        z: this.header.zOffset
+        x: this.header.xOffset, y: this.header.yOffset, z: this.header.zOffset
       }
     };
   }
-
-  /**
-   * Get metadata
-   */
+  
   getMetadata(): LidarMetadata {
     return this.metadata;
   }
-
-  /**
-   * Get raw decompressed data (for future point parsing)
-   */
-  getRawData(): ArrayBuffer {
-    return this.decompressedData;
-  }
-
-  /**
-   * Get LAS header (for advanced use cases)
-   */
+  
   getHeader(): LASHeader {
     return this.header;
   }
-
-  /**
-   * Get point data offset (where point records start)
-   */
-  getPointDataOffset(): number {
-    return this.header.offsetToPointData;
-  }
-
-  /**
-   * Get point record length
-   */
-  getPointRecordLength(): number {
-    return this.header.pointDataRecordLength;
-  }
-
-  /**
-   * Get LazPerf instance (for LAZ files)
-   */
-  getLazPerf(): any {
-    return this.lazPerf;
-  }
-
-  /**
-   * Get LASZip instance (for LAZ files)
-   */
-  getLaszip(): any {
-    return this.laszip;
-  }
-
-  /**
-   * Cleanup method to free allocated memory
-   */
-  cleanup(): void {
-    if (this.lazPerf && this.dataPointer) {
-      this.lazPerf._free(this.dataPointer);
-      this.dataPointer = 0;
-    }
-  }
-
-  /**
-   * Placeholder methods for future implementation (Task 2C)
-   */
+  
   getPoints(): Float32Array {
-    throw new Error('Point parsing not yet implemented. This will be added in Task 2C.');
+    return this.pointData.positions;
   }
 
-  getClassifications(): number[] {
-    throw new Error('Classification parsing not yet implemented. This will be added in Task 2C.');
+  getClassifications(): Uint8Array {
+    return this.pointData.classifications;
   }
 
   getFilteredPoints(filter: any): Float32Array {

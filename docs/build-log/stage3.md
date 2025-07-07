@@ -206,8 +206,8 @@ From our previous debugging, we know your files use **Point Data Record Format 6
 
 see `PointCloudData` interface added to Data Model section 
 
-- [ ] Task 2B: After determining efficient way of storing point cloud data, finish implementation with efficient point cloud data storing and access
-- [ ] Task 3: Display file metadata and basic statistics in sidebar
+- [x] Task 2B: After determining efficient way of storing point cloud data, finish implementation with efficient point cloud data storing and access
+- [x] Task 3: Display file metadata and basic statistics in ~~sidebar~~ info panel
 
 **Success Criteria:**
 - Can load and parse LAZ file 
