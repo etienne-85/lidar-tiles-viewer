@@ -166,7 +166,7 @@ export class LidarPointCloud {
       headerSize: view.getUint16(94, true),
       offsetToPointData: view.getUint32(96, true),
       numberOfVariableLengthRecords: view.getUint32(100, true),
-      pointDataRecordFormat: view.getUint8(104),
+      pointDataRecordFormat: view.getUint8(104) & 0x7F, // On masque le bit de compression
       pointDataRecordLength: view.getUint16(105, true),
       numberOfPointRecords: view.getUint32(107, true),
       numberOfPointsByReturn: [
