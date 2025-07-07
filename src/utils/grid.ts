@@ -17,7 +17,7 @@ export function gridToWorld(gridX: number, gridZ: number): { worldX: number; wor
 export function getTerrainHeight(worldX: number, worldZ: number): number {
   const amplitude = 10;
   const frequency = 0.05;
-  return 0//amplitude * Math.sin(worldX * frequency) * Math.cos(worldZ * frequency);
+  return 100//amplitude * Math.sin(worldX * frequency) * Math.cos(worldZ * frequency);
 }
 
 // Convert world position to tile coordinates
@@ -100,12 +100,10 @@ export function transformLidarPositions(
     const x2 = tileCol * TILE_SIZE + tilePos.x
     const y2 = tileRow * TILE_SIZE + tilePos.y
     // temporary fix harcoded translation
-    const x3 = x + 16381700; 
-    const y3 = y + 4842500;
     // Transform to scene coordinates with axis mapping
-    transformedPositions[i] = x3;     // X -> X
+    transformedPositions[i] = x;     // X -> X
     transformedPositions[i + 1] = h; // Z -> Y (height)
-    transformedPositions[i + 2] = y3; // Y -> Z
+    transformedPositions[i + 2] = -y; // Y -> Z
   }
 
   return transformedPositions;

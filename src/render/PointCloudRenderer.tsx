@@ -12,21 +12,21 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({ pointClo
   const { geometry, colors } = useMemo(() => {
     const positions = pointCloud.getPoints();
     const classifications = pointCloud.getClassifications();
-    
+
     console.log('PointCloudRenderer - Point count:', positions.length / 3);
     console.log('PointCloudRenderer - First 10 positions:', positions.slice(0, 30));
-    
+
     // Get bounds from metadata instead of calculating from all points
     const metadata = pointCloud.getMetadata();
     console.log('PointCloudRenderer - Bounds from metadata:', metadata.bounds);
 
     // Transform LIDAR coordinates to world coordinates
-    
+
     // Apply coordinate transformation to all positions
     // "LHD_FXX_0796_6792_PTS_C_LAMB93_IGN69.copc.laz" → {tileCol: 796, tileRow: 6792}
     // 796000, 6791000 => 268281, 181562
     const transformedPositions = transformLidarPositions(positions);
-    
+
     // Create geometry
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(transformedPositions, 3));
@@ -34,10 +34,10 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({ pointClo
     // Create colors based on classification
     const colorArray = new Float32Array(transformedPositions.length); // Same length as positions (x,y,z per point)
     const tempColor = new Color();
-    
+
     for (let i = 0; i < classifications.length; i++) {
       const classification = classifications[i];
-      
+
       // Color mapping based on LAS classification codes
       switch (classification) {
         case 1: // Unclassified
@@ -95,25 +95,27 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({ pointClo
           tempColor.setHex(0x404040); // Dark gray for unknown
           break;
       }
-      
+
       // Set RGB values for this point
       colorArray[i * 3] = tempColor.r;
       colorArray[i * 3 + 1] = tempColor.g;
       colorArray[i * 3 + 2] = tempColor.b;
     }
-    
+
     geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
-    
+
     return { geometry, colors: colorArray };
   }, [pointCloud]);
-
+  // temporary fix: hardcoded translation
   return (
-    <points geometry={geometry}>
-      <pointsMaterial
-        vertexColors={true}
-        size={0.1}
-        sizeAttenuation={true}
-      />
-    </points>
+    <group position={[16381410, 0, 18425240]} scale={1.0}>
+      <points geometry={geometry}>
+        <pointsMaterial
+          vertexColors={true}
+          size={0.1}
+          sizeAttenuation={true}
+        />
+      </points>
+    </group>
   );
 };
