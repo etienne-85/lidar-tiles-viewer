@@ -22,6 +22,7 @@ function App() {
     initialPlayerZ
   ]);
   const [isCameraTracking, setIsCameraTracking] = useState(true);
+  const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('orthographic');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);
@@ -75,6 +76,10 @@ function App() {
     console.error('File error:', error);
   };
 
+  const handleRestoreTracking = () => {
+    setIsCameraTracking(true);
+  };
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <TerrainScene 
@@ -84,6 +89,7 @@ function App() {
         pointCloud={pointCloud}
         isCameraTracking={isCameraTracking}
         onCameraTrackingChange={setIsCameraTracking}
+        cameraProjection={cameraProjection}
       />
       
       <OverlayUI
@@ -95,6 +101,10 @@ function App() {
         fileError={fileError}
         pointCloud={pointCloud}
         isProcessingFile={isProcessingFile}
+        isCameraTracking={isCameraTracking}
+        onRestoreTracking={handleRestoreTracking}
+        cameraProjection={cameraProjection}
+        onCameraProjectionChange={setCameraProjection}
       />
     </div>
   );

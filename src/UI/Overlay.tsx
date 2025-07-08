@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TextOverlay } from './TextOverlay';
 import { SidebarOverlay } from './SidebarOverlay';
+import { ControlPanel } from './ControlPanel';
 import { LidarPointCloud } from '../data/LidarPointCloud';
 
 interface OverlayUIProps {
@@ -12,6 +13,10 @@ interface OverlayUIProps {
   fileError: string | null;
   pointCloud: LidarPointCloud | null;
   isProcessingFile: boolean;
+  isCameraTracking: boolean;
+  onRestoreTracking: () => void;
+  cameraProjection: 'perspective' | 'orthographic';
+  onCameraProjectionChange: (projection: 'perspective' | 'orthographic') => void;
 }
 
 export const OverlayUI: React.FC<OverlayUIProps> = ({ 
@@ -22,7 +27,11 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
   selectedFile, 
   fileError,
   pointCloud,
-  isProcessingFile
+  isProcessingFile,
+  isCameraTracking,
+  onRestoreTracking,
+  cameraProjection,
+  onCameraProjectionChange
 }) => {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -54,6 +63,13 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
         fileError={fileError}
         pointCloud={pointCloud}
         isProcessingFile={isProcessingFile}
+      />
+      
+      <ControlPanel
+        isCameraTracking={isCameraTracking}
+        onRestoreTracking={onRestoreTracking}
+        cameraProjection={cameraProjection}
+        onCameraProjectionChange={onCameraProjectionChange}
       />
     </>
   );

@@ -15,6 +15,7 @@ interface TerrainSceneProps {
   pointCloud?: LidarPointCloud | null;
   isCameraTracking: boolean;
   onCameraTrackingChange: (tracking: boolean) => void;
+  cameraProjection: 'perspective' | 'orthographic';
 }
 
 export const TerrainScene = ({ 
@@ -23,7 +24,8 @@ export const TerrainScene = ({
   currentPatch,
   pointCloud,
   isCameraTracking,
-  onCameraTrackingChange
+  onCameraTrackingChange,
+  cameraProjection
 }: TerrainSceneProps) => {
   // Calculate initial camera position from player position
   const initialCameraX = playerPosition[0];
@@ -32,9 +34,30 @@ export const TerrainScene = ({
   // Optimized patch polling - only when currentPatch changes
   const visiblePatchIds = usePatchPolling(currentPatch, TILE_RANGE);
   
+  // Configure camera based on projection type
+  const cameraConfig = cameraProjection === 'perspective' 
+    ? { 
+        position: [initialCameraX, 20, initialCameraZ] as [number, number, number],
+        fov: 60,
+        near: 0.1,
+        far: 4000
+      }
+    : { 
+        position: [initialCameraX, 20, initialCameraZ] as [number, number, number],
+        zoom: 1,
+        left: -50,
+        right: 50,
+        top: 50,
+        bottom: -50,
+        near: 0.1,
+        far: 4000
+      };
+  
   return (
     <Canvas
-      camera={{ position: [initialCameraX, 20, initialCameraZ], fov: 60, far: 4000 }}
+      key={cameraProjection} // Force remount when camera projection changes
+      orthographic={cameraProjection === 'orthographic'}
+      camera={cameraConfig}
       style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
     >
       <Player 
