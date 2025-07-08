@@ -7,9 +7,11 @@ import { getTerrainHeight } from './utils/grid';
 interface PlayerProps {
   position: [number, number, number];
   onPositionChange: (position: [number, number, number]) => void;
+  isCameraTracking: boolean;
+  onCameraTrackingChange: (tracking: boolean) => void;
 }
 
-export function Player({ position, onPositionChange }: PlayerProps) {
+export function Player({ position, onPositionChange, isCameraTracking, onCameraTrackingChange }: PlayerProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const controlsRef = useRef<CameraControls>(null);
   const keys = useRef({ KeyW: false, KeyA: false, KeyS: false, KeyD: false });
@@ -59,6 +61,29 @@ export function Player({ position, onPositionChange }: PlayerProps) {
       }
     };
   }, []);
+
+  // Add camera control event listener
+  useEffect(() => {
+    if (!controlsRef.current) return;
+
+    const handleControlChange = () => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+
+      // Check if user is dragging the camera (currentAction === 2)
+      if (controls.currentAction === 2 && isCameraTracking) {
+        onCameraTrackingChange(false);
+      }
+    };
+
+    controlsRef.current.addEventListener('control', handleControlChange);
+
+    return () => {
+      if (controlsRef.current) {
+        controlsRef.current.removeEventListener('control', handleControlChange);
+      }
+    };
+  }, [isCameraTracking, onCameraTrackingChange]);
   
   useFrame((state, delta) => {
     if (!meshRef.current || !controlsRef.current) return;
@@ -108,8 +133,10 @@ export function Player({ position, onPositionChange }: PlayerProps) {
       lastReportedPosition.current = newPosition;
     }
     
-    // Camera always follows player position as target
-    controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
+    // Camera tracking: only follow player if tracking is enabled
+    if (isCameraTracking) {
+      controlsRef.current.setTarget(newPosition[0], newPosition[1], newPosition[2], true);
+    }
     
     // Adaptive camera distance control
     const currentDistance = controlsRef.current.distance;

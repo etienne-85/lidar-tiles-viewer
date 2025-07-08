@@ -21,6 +21,7 @@ function App() {
     0,
     initialPlayerZ
   ]);
+  const [isCameraTracking, setIsCameraTracking] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);
@@ -81,6 +82,8 @@ function App() {
         onPlayerPositionChange={setPlayerPosition}
         currentPatch={currentPatch}
         pointCloud={pointCloud}
+        isCameraTracking={isCameraTracking}
+        onCameraTrackingChange={setIsCameraTracking}
       />
       
       <OverlayUI

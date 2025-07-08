@@ -13,13 +13,17 @@ interface TerrainSceneProps {
   onPlayerPositionChange: (position: [number, number, number]) => void;
   currentPatch: string;
   pointCloud?: LidarPointCloud | null;
+  isCameraTracking: boolean;
+  onCameraTrackingChange: (tracking: boolean) => void;
 }
 
 export const TerrainScene = ({ 
   playerPosition, 
   onPlayerPositionChange, 
   currentPatch,
-  pointCloud 
+  pointCloud,
+  isCameraTracking,
+  onCameraTrackingChange
 }: TerrainSceneProps) => {
   // Calculate initial camera position from player position
   const initialCameraX = playerPosition[0];
@@ -33,7 +37,12 @@ export const TerrainScene = ({
       camera={{ position: [initialCameraX, 20, initialCameraZ], fov: 60, far: 4000 }}
       style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
     >
-      <Player position={playerPosition} onPositionChange={onPlayerPositionChange} />
+      <Player 
+        position={playerPosition} 
+        onPositionChange={onPlayerPositionChange}
+        isCameraTracking={isCameraTracking}
+        onCameraTrackingChange={onCameraTrackingChange}
+      />
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
       <Grid args={[100, 100]} />
