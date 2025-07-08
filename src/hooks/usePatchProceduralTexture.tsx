@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { TILE_SIZE } from '../utils/constants';
+import { PATCH_SIZE } from '../utils/constants';
 
 export function usePatchProceduralTexture(patchId: string): THREE.CanvasTexture {
   return useMemo(() => {
@@ -52,7 +52,7 @@ export function usePatchProceduralTexture(patchId: string): THREE.CanvasTexture 
 
     // Additional info text
     ctx.font = '16px Arial';
-    ctx.fillText(`World: ${tileCol * TILE_SIZE}, ${tileRow * TILE_SIZE}`, 256, 300);
+    ctx.fillText(`World: ${tileCol * PATCH_SIZE}, ${tileRow * PATCH_SIZE}`, 256, 300);
 
     return new THREE.CanvasTexture(canvas);
   }, [patchId]);

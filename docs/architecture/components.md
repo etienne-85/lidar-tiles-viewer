@@ -177,7 +177,7 @@ const visiblePatchIds = usePatchPolling(currentPatch, TILE_RANGE);
 **File**: `src/utils/constants.ts`
 
 **Configuration**:
-- `TILE_SIZE`: Size of each terrain patch (64 units)
+- `PATCH_SIZE`: Size of each terrain patch (64 units)
 - `TILE_RANGE`: Number of patches to render around player (2)
 
 ---

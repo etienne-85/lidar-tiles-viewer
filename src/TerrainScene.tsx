@@ -30,7 +30,7 @@ export const TerrainScene = ({
   
   return (
     <Canvas
-      camera={{ position: [initialCameraX, 20, initialCameraZ], fov: 60 }}
+      camera={{ position: [initialCameraX, 20, initialCameraZ], fov: 60, far: 4000 }}
       style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
     >
       <Player position={playerPosition} onPositionChange={onPlayerPositionChange} />

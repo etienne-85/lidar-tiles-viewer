@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { getTerrainHeight, tileToWorldPosition } from './utils/grid';
 import { usePatchProceduralTexture } from './hooks/usePatchProceduralTexture';
 import { useImageryTiles } from './hooks/useImageryTiles';
-import { TILE_SIZE } from './utils/constants';
+import { PATCH_SIZE } from './utils/constants';
 
 interface TerrainPatchProps {
     patchId: string;
@@ -43,8 +43,8 @@ function TerrainPatch({ patchId }: TerrainPatchProps) {
         for (let z = 0; z <= segments; z++) {
             for (let x = 0; x <= segments; x++) {
                 // Calculate local coordinates from 0 to PATCH_SIZE (corner-based)
-                const localX = (x / segments) * TILE_SIZE;
-                const localZ = (z / segments) * TILE_SIZE;
+                const localX = (x / segments) * PATCH_SIZE;
+                const localZ = (z / segments) * PATCH_SIZE;
 
                 // Sample height at absolute world position
                 const worldPosX = worldX + localX;

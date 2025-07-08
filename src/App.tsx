@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { TerrainScene } from './TerrainScene';
 import { OverlayUI } from './UI/Overlay';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
-import { TILE_COL, TILE_ROW, TILE_SIZE } from './utils/constants';
+import { TILE_COL, TILE_ROW, PATCH_SIZE } from './utils/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
 
@@ -11,8 +11,8 @@ function App() {
   const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILE_COL, TILE_ROW);
 
   // Position player slightly inside the patch to avoid boundary issues
-  const initialPlayerX = patchCornerX + TILE_SIZE / 2;
-  const initialPlayerZ = patchCornerZ + TILE_SIZE / 2;
+  const initialPlayerX = patchCornerX + PATCH_SIZE / 2;
+  const initialPlayerZ = patchCornerZ + PATCH_SIZE / 2;
 
   // Global state management
   const [currentPatch, setCurrentPatch] = useState<string>(`${TILE_COL}:${TILE_ROW}`);

@@ -1,0 +1,90 @@
+// src/utils/projection.ts
+
+import proj4 from 'proj4';
+
+// Standard constants for Web Mercator (EPSG:3857) calculations
+export const EARTH_RADIUS = 6378137; // Meters (WGS84 semi-major axis, used in Web Mercator)
+export const MAX_WEB_MERCATOR = EARTH_RADIUS * Math.PI; // Max extent in meters from the prime meridian/equator
+
+// Define Lambert 93 (EPSG:2154)
+// You can find these definitions on epsg.io (search for 2154)
+proj4.defs(
+  'EPSG:2154',
+  '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'
+);
+
+// Define Web Mercator (EPSG:3857) - used by most web maps (like PM tile sets)
+// This is often pre-defined in proj4js, but good to be explicit
+proj4.defs(
+  'EPSG:3857',
+  '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs +type=crs'
+);
+
+/**
+ * Converts Lambert 93 coordinates to Web Mercator (EPSG:3857).
+ * @param x Lambert 93 X coordinate
+ * @param y Lambert 93 Y coordinate
+ * @returns [webMercatorX, webMercatorY]
+ */
+export function lambert93ToWebMercator(x: number, y: number): [number, number] {
+  return proj4('EPSG:2154', 'EPSG:3857', [x, y]);
+}
+
+export const TILE_SIZE_PX = 256; // Standard tile pixel size for WMTS/OpenStreetMap
+
+/**
+ * Converts a WMTS tile (col, row, zoom) to its Web Mercator (EPSG:3857) bounding box.
+ * This function calculates the Web Mercator (meter) bounds based on standard XYZ tile scheme.
+ * @param tileCol Tile Column
+ * @param tileRow Tile Row
+ * @param zoom Zoom Level
+ * @returns {minX, minY, maxX, maxY} in Web Mercator meters
+ */
+export function getWebMercatorBoundsFromTile(
+  tileCol: number,
+  tileRow: number,
+  zoom: number
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  const n = Math.pow(2, zoom);
+  // Resolution in meters per pixel at this zoom level
+  const resolution = (2 * MAX_WEB_MERCATOR) / (n * TILE_SIZE_PX);
+
+  // Calculate Web Mercator coordinates from tile indices and resolution
+  const minX = -MAX_WEB_MERCATOR + tileCol * TILE_SIZE_PX * resolution;
+  // Y-axis for tile rows is typically inverted compared to Web Mercator Y
+  const maxY = MAX_WEB_MERCATOR - tileRow * TILE_SIZE_PX * resolution;
+
+  const maxX = -MAX_WEB_MERCATOR + (tileCol + 1) * TILE_SIZE_PX * resolution;
+  const minY = MAX_WEB_MERCATOR - (tileRow + 1) * TILE_SIZE_PX * resolution;
+
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Converts Web Mercator (EPSG:3857) coordinates to a WMTS tile (col, row) at a given zoom.
+ * This is the more direct function we need.
+ * @param webMercatorX Web Mercator X coordinate (meters)
+ * @param webMercatorY Web Mercator Y coordinate (meters)
+ * @param zoom Zoom Level
+ * @returns {tileCol, tileRow}
+ */
+export function webMercatorToTile(
+    webMercatorX: number,
+    webMercatorY: number,
+    zoom: number
+  ): { tileCol: number; tileRow: number } {
+    const n = Math.pow(2, zoom);
+    // Total world width in Web Mercator at current zoom level in pixels (if it were one giant image)
+    const worldPx = TILE_SIZE_PX * n;
+  
+    // X pixel coordinate (from left edge of Web Mercator world)
+    const xPx = (webMercatorX + MAX_WEB_MERCATOR) / (2 * MAX_WEB_MERCATOR) * worldPx;
+    // Y pixel coordinate (from top edge of Web Mercator world)
+    // Note: Web Mercator Y is positive North, but tile rows increase downwards (South)
+    const yPx = (MAX_WEB_MERCATOR - webMercatorY) / (2 * MAX_WEB_MERCATOR) * worldPx;
+  
+    const tileCol = Math.floor(xPx / TILE_SIZE_PX);
+    const tileRow = Math.floor(yPx / TILE_SIZE_PX);
+  
+    return { tileCol, tileRow };
+  }

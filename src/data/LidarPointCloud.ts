@@ -1,3 +1,5 @@
+// src/data/LidarPointCloud.ts
+
 import { createLazPerf } from 'laz-perf';
 
 // LAS header structure based on LAS specification
@@ -55,7 +57,7 @@ export interface LidarMetadata {
     y: number;
     z: number;
   };
-  offset: {
+  offset: { 
     x: number;
     y: number;
     z: number;
@@ -88,18 +90,18 @@ export class LidarPointCloud {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       lazPerf = await createLazPerf();
       const laszip = new lazPerf.LASZip();
-      
+
       dataPointer = lazPerf._malloc(uint8Array.length);
       lazPerf.HEAPU8.set(uint8Array, dataPointer);
-      
+
       laszip.open(dataPointer, uint8Array.length);
-      
+
       const header = this.parseLASHeader(arrayBuffer);
       this.validateHeader(header);
-      
+
       const pointCount = header.numberOfPointRecords;
       const pointRecordLength = header.pointDataRecordLength;
 
@@ -107,7 +109,7 @@ export class LidarPointCloud {
       const positions = new Float32Array(pointCount * 3);
       const classifications = new Uint8Array(pointCount);
       const intensities = new Uint16Array(pointCount);
-      
+
       // Allocate a small buffer in WASM memory for just ONE point
       pointDataPointer = lazPerf._malloc(pointRecordLength);
 
@@ -120,23 +122,25 @@ export class LidarPointCloud {
         laszip.getPoint(pointDataPointer);
 
         // Read attributes directly from the WASM buffer using our DataView
-        // Note: Offsets are for Point Data Record Format 6
+        // Note: Offsets are for Point Data Record Format 6 (adjust if different format is needed)
         const rawX = pointView.getInt32(0, true);
         const rawY = pointView.getInt32(4, true);
         const rawZ = pointView.getInt32(8, true);
         const intensity = pointView.getUint16(12, true);
         const classification = pointView.getUint8(15);
-        
-        // Apply scale and offset
-        positions[i * 3 + 0] = rawX * header.xScaleFactor + header.xOffset;
-        positions[i * 3 + 1] = rawY * header.yScaleFactor + header.yOffset;
-        positions[i * 3 + 2] = rawZ * header.zScaleFactor + header.zOffset;
+
+        // Apply original LAS scale and offset, then apply new scene offset
+        // AND PERFORM AXIS REMAPPING HERE!
+        positions[i * 3 + 0] = rawX * header.xScaleFactor + header.xOffset - header.minX; // X -> X
+        positions[i * 3 + 1] = rawZ * header.zScaleFactor + header.zOffset - header.minZ; // Z (height) -> Y
+        positions[i * 3 + 2] = (rawY * header.yScaleFactor + header.yOffset - header.minY) * -1; // Y -> -Z
+
         classifications[i] = classification;
         intensities[i] = intensity;
       }
-      
+
       const pointData: PointCloudData = { positions, classifications, intensities };
-      return new LidarPointCloud(header, pointData);
+      return new LidarPointCloud(header, pointData); // Pass the calculated offset
 
     } catch (error) {
       throw new Error(`Failed to load LAZ file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -154,18 +158,24 @@ export class LidarPointCloud {
       const arrayBuffer = await file.arrayBuffer();
       const header = this.parseLASHeader(arrayBuffer);
       this.validateHeader(header);
-      
+
+      // Calculate the scene offset based on the header's min bounds
+      const sceneOffsetX = header.minX;
+      const sceneOffsetY = header.minY;
+      const sceneOffsetZ = header.minZ;
+      const sceneOffset = { x: sceneOffsetX, y: sceneOffsetY, z: sceneOffsetZ };
+
       const pointDataBuffer = arrayBuffer.slice(header.offsetToPointData);
-      const pointData = this.parsePointData(header, pointDataBuffer);
+      const pointData = this.parsePointData(header, pointDataBuffer, sceneOffset); // Pass sceneOffset
       
-      return new LidarPointCloud(header, pointData);
+      return new LidarPointCloud(header, pointData); // Pass the calculated offset
 
     } catch (error) {
       throw new Error(`Failed to load LAS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer): PointCloudData {
+  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer, sceneOffset: { x: number; y: number; z: number }): PointCloudData {
     const pointCount = header.numberOfPointRecords;
     const pointRecordLength = header.pointDataRecordLength;
     const view = new DataView(pointDataBuffer);
@@ -183,13 +193,12 @@ export class LidarPointCloud {
       const intensity = view.getUint16(offset + 12, true);
       const classification = view.getUint8(offset + 15);
 
-      const x = rawX * header.xScaleFactor + header.xOffset;
-      const y = rawY * header.yScaleFactor + header.yOffset;
-      const z = rawZ * header.zScaleFactor + header.zOffset;
+      // Apply original LAS scale and offset, then apply new scene offset
+      // AND PERFORM AXIS REMAPPING HERE!
+      positions[i * 3 + 0] = (rawX * header.xScaleFactor + header.xOffset) - sceneOffset.x; // X -> X
+      positions[i * 3 + 1] = (rawZ * header.zScaleFactor + header.zOffset) - sceneOffset.z; // Z (height) -> Y
+      positions[i * 3 + 2] = ((rawY * header.yScaleFactor + header.yOffset) - sceneOffset.y) * -1; // Y -> -Z
 
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
       classifications[i] = classification;
       intensities[i] = intensity;
     }
@@ -265,6 +274,8 @@ export class LidarPointCloud {
     if (header.versionMajor !== 1) {
       throw new Error(`Unsupported LAS version: ${header.versionMajor}.${header.versionMinor}`);
     }
+    // Updated to support up to format 10, common in modern LAS files.
+    // Point Data Record Format 6 is common for modern files (includes extra attributes).
     if (header.pointDataRecordFormat > 10) {
       throw new Error(`Unsupported point data record format: ${header.pointDataRecordFormat}`);
     }
@@ -277,7 +288,7 @@ export class LidarPointCloud {
   }
 
   private extractMetadata(): LidarMetadata {
-    const creationDate = this.header.creationYear > 0 
+    const creationDate = this.header.creationYear > 0
       ? `${this.header.creationYear}-${this.header.creationDayOfYear.toString().padStart(3, '0')}`
       : 'Unknown';
 
@@ -296,20 +307,20 @@ export class LidarPointCloud {
       scaleFactor: {
         x: this.header.xScaleFactor, y: this.header.yScaleFactor, z: this.header.zScaleFactor
       },
-      offset: {
+      offset: { // This is the original LAS file offset
         x: this.header.xOffset, y: this.header.yOffset, z: this.header.zOffset
       }
     };
   }
-  
+
   getMetadata(): LidarMetadata {
     return this.metadata;
   }
-  
+
   getHeader(): LASHeader {
     return this.header;
   }
-  
+
   getPoints(): Float32Array {
     return this.pointData.positions;
   }
