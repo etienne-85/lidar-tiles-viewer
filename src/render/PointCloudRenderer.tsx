@@ -27,18 +27,17 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
     console.log('PointCloudRenderer - Point count:', positions.length / 3);
     console.log('PointCloudRenderer - First 10 relative positions (in meters, reprojected):', positions.slice(0, 30));
     console.log('PointCloudRenderer - Original LiDAR Bounds:', metadata.originalBounds);
-    console.log('PointCloudRenderer - Reprojected LiDAR Bounds (in target CRS meters):', metadata.reprojectedBounds);
+    console.log('PointCloudRenderer - Reprojected LiDAR Bounds (in target CRS meters):', metadata.targetBounds);
 
     // The point cloud data is now relative to its reprojected min bounds.
     // We need to determine where this reprojected min bound sits in the global tile grid.
 
     // Get the reprojected min X, Y of the LiDAR data (these are in target CRS meters)
-    const lidarMinX_reproj = metadata.reprojectedBounds.minX;
-    const lidarMinY_reproj = metadata.reprojectedBounds.minY;
-    const lidarMinZ_reproj = metadata.reprojectedBounds.minZ; // This is the actual min Z altitude
+    const {targetBounds} = metadata
+    const minAltitude = targetBounds.min.z
 
     // Determine the tile (col, row) that contains the reprojected minX, minY of the LiDAR data
-    const { tileCol, tileRow } = webMercatorToTile(lidarMinX_reproj, lidarMinY_reproj, ZOOM_LEVEL);
+    const { tileCol, tileRow } = webMercatorToTile(targetBounds.min.x, targetBounds.min.y, ZOOM_LEVEL);
     console.log('PointCloudRenderer - LiDAR Reprojected Min (target CRS) Tile (col, row):', tileCol, tileRow);
 
     // Calculate the Web Mercator bounds of this tile
@@ -46,10 +45,10 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
     console.log('PointCloudRenderer - Tile Bounds (target CRS meters):', tileBounds);
 
     // Calculate the offset of the LiDAR's reprojected min point *within* its tile, in meters
-    const offsetX_meters_within_tile = lidarMinX_reproj - tileBounds.minX;
+    const offsetX_meters_within_tile = targetBounds.min.x - tileBounds.minX;
     // For Y, tile rows increase downwards, but Web Mercator Y increases upwards.
     // So, we need to calculate distance from the *top* of the tile (maxY)
-    const offsetY_meters_within_tile = tileBounds.maxY - lidarMinY_reproj;
+    const offsetY_meters_within_tile = tileBounds.maxY - targetBounds.min.y;
     console.log('PointCloudRenderer - Offset of LiDAR Min within Tile (meters):', offsetX_meters_within_tile, offsetY_meters_within_tile);
 
     // Calculate the base position of the tile's bottom-left corner in scene units.
@@ -67,7 +66,7 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
     // 3. PLUS the actual min Z altitude of the LiDAR data, converted to scene units, for the Y-axis.
 
     const groupPositionX = tileBaseX_sceneUnits + offsetX_sceneUnits + 20;
-    const groupPositionY = lidarMinZ_reproj; // Z altitude becomes Y in Three.js
+    const groupPositionY = minAltitude; // Z altitude becomes Y in Three.js
     const groupPositionZ = tileBaseY_sceneUnits + offsetY_sceneUnits + 24; // Tile Y becomes negative Z in Three.js
 
     const groupPosition = new Vector3(groupPositionX, groupPositionY, groupPositionZ);

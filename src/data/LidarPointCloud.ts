@@ -1,5 +1,6 @@
 import { createLazPerf } from 'laz-perf';
 import { transformCoordinates } from '../utils/proj'; // Import the new transformCoordinates function
+import * as THREE from 'three'; // Import Three.js for Vector3 and Box3
 
 // LAS header structure based on LAS specification
 interface LASHeader {
@@ -35,26 +36,13 @@ interface LASHeader {
   numberOfPointRecords_1_4?: bigint;
 }
 
-// Public metadata interface
+// Public metadata interface - now uses THREE.Box3 for bounds
 export interface LidarMetadata {
   pointCount: number;
   // Original bounds from LAS header
-  originalBounds: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-    minZ: number;
-    maxZ: number;
-  };
+  originalBounds: THREE.Box3; // Changed to Box3
   // Bounds after reprojection to the target CRS (e.g., Web Mercator)
-  reprojectedBounds: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-    minZ: number; // Z remains the same, but we track its min/max
-  };
+  targetBounds: THREE.Box3; // Changed to Box3
   pointFormat: number;
   version: string;
   creationDate: string;
@@ -65,7 +53,7 @@ export interface LidarMetadata {
     y: number;
     z: number;
   };
-  offset: { 
+  offset: {
     x: number;
     y: number;
     z: number;
@@ -77,7 +65,7 @@ export interface LidarMetadata {
 
 // Structure of Arrays data format for efficient storage and rendering
 interface PointCloudData {
-  positions: Float32Array; // These will now be relative to reprojectedBounds.minX/Y/Z
+  positions: Float32Array; // These will now be relative to targetBounds.minX/Y/Z
   classifications: Uint8Array;
   intensities: Uint16Array;
 }
@@ -90,21 +78,21 @@ export class LidarPointCloud {
   private constructor(header: LASHeader, pointData: PointCloudData, metadata: LidarMetadata) {
     this.header = header;
     this.pointData = pointData;
-    this.metadata = metadata; // Use the calculated metadata
+    this.metadata = metadata;
   }
 
   static async fromLAZFile(file: File, sourceEpsg: string = 'EPSG:2154', targetEpsg: string = 'EPSG:3857'): Promise<LidarPointCloud> {
     let lazPerf: any = null;
     let dataPointer: number = 0;
     let pointDataPointer: number = 0;
-    let laszip: any = null; // Declare laszip here, outside the try block
+    let laszip: any = null;
 
     try {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
       lazPerf = await createLazPerf();
-      laszip = new lazPerf.LASZip(); // Initialize laszip here
+      laszip = new lazPerf.LASZip();
 
       dataPointer = lazPerf._malloc(uint8Array.length);
       lazPerf.HEAPU8.set(uint8Array, dataPointer);
@@ -126,9 +114,9 @@ export class LidarPointCloud {
       pointDataPointer = lazPerf._malloc(pointRecordLength);
       const pointView = new DataView(lazPerf.HEAPU8.buffer, pointDataPointer, pointRecordLength);
 
-      let minX_reproj = Infinity, maxX_reproj = -Infinity;
-      let minY_reproj = Infinity, maxY_reproj = -Infinity;
-      let minZ_reproj = Infinity, maxZ_reproj = -Infinity;
+      // Refactor: Use THREE.Box3 for accumulating reprojected bounds
+      const targetBounds = new THREE.Box3();
+      const currentPointTempVec = new THREE.Vector3(); // Reusable Vector3 to avoid allocation in loop
 
       // Single pass: Decompress, apply LAS scale/offset, reproject, find reprojected bounds, and store all attributes
       for (let i = 0; i < pointCount; i++) {
@@ -157,14 +145,15 @@ export class LidarPointCloud {
         tempClassifications[i] = classification;
         tempIntensities[i] = intensity;
 
-        // Update reprojected bounds
-        minX_reproj = Math.min(minX_reproj, reprojX);
-        maxX_reproj = Math.max(maxX_reproj, reprojX);
-        minY_reproj = Math.min(minY_reproj, reprojY);
-        maxY_reproj = Math.max(maxY_reproj, reprojY);
-        minZ_reproj = Math.min(minZ_reproj, originalZ);
-        maxZ_reproj = Math.max(maxZ_reproj, originalZ);
+        // Update reprojected bounds using THREE.Box3
+        currentPointTempVec.set(reprojX, reprojY, originalZ); // Z is originalZ, not reprojected
+        targetBounds.expandByPoint(currentPointTempVec);
       }
+
+      // Extract min/max from the calculated reprojected bounds box
+      const minX_reproj = targetBounds.min.x;
+      const minY_reproj = targetBounds.min.y;
+      const minZ_reproj = targetBounds.min.z;
 
       // Final positions array with offset and axis remapping
       const positions = new Float32Array(pointCount * 3);
@@ -188,15 +177,21 @@ export class LidarPointCloud {
         intensities: tempIntensities
       };
 
-      const metadata = this.extractMetadata(header, { minX: minX_reproj, maxX: maxX_reproj, minY: minY_reproj, maxY: maxY_reproj, minZ: minZ_reproj, maxZ: maxZ_reproj }, sourceEpsg, targetEpsg);
-      
+      // Refactor: Create originalBounds from header values
+      const originalBounds = new THREE.Box3(
+        new THREE.Vector3(header.minX, header.minY, header.minZ),
+        new THREE.Vector3(header.maxX, header.maxY, header.maxZ)
+      );
+
+      // Refactor: Pass the Box3 objects directly to extractMetadata
+      const metadata = this.extractMetadata(header, originalBounds, targetBounds, sourceEpsg, targetEpsg);
+
       return new LidarPointCloud(header, pointData, metadata);
 
     } catch (error) {
       throw new Error(`Failed to load LAZ file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      // Ensure laszip is closed if it was opened
-      if (laszip && laszip.close) { // Check if close function exists before calling
+      if (laszip && laszip.close) {
           laszip.close();
       }
       if (lazPerf) {
@@ -221,9 +216,9 @@ export class LidarPointCloud {
       const tempClassifications = new Uint8Array(pointCount);
       const tempIntensities = new Uint16Array(pointCount);
 
-      let minX_reproj = Infinity, maxX_reproj = -Infinity;
-      let minY_reproj = Infinity, maxY_reproj = -Infinity;
-      let minZ_reproj = Infinity, maxZ_reproj = -Infinity;
+      // Refactor: Use THREE.Box3 for accumulating reprojected bounds
+      const targetBounds = new THREE.Box3();
+      const currentPointTempVec = new THREE.Vector3(); // Reusable Vector3 to avoid allocation in loop
 
       // First pass: Read, apply LAS scale/offset, reproject, and find reprojected bounds
       for (let i = 0; i < pointCount; i++) {
@@ -247,13 +242,15 @@ export class LidarPointCloud {
         tempClassifications[i] = classification;
         tempIntensities[i] = intensity;
 
-        minX_reproj = Math.min(minX_reproj, reprojX);
-        maxX_reproj = Math.max(maxX_reproj, reprojX);
-        minY_reproj = Math.min(minY_reproj, reprojY);
-        maxY_reproj = Math.max(maxY_reproj, reprojY);
-        minZ_reproj = Math.min(minZ_reproj, originalZ);
-        maxZ_reproj = Math.max(maxZ_reproj, originalZ);
+        // Update reprojected bounds using THREE.Box3
+        currentPointTempVec.set(reprojX, reprojY, originalZ);
+        targetBounds.expandByPoint(currentPointTempVec);
       }
+
+      // Extract min/max from the calculated reprojected bounds box
+      const minX_reproj = targetBounds.min.x;
+      const minY_reproj = targetBounds.min.y;
+      const minZ_reproj = targetBounds.min.z;
 
       // Second pass: Create final positions array with offset and axis remapping
       const positions = new Float32Array(pointCount * 3);
@@ -269,12 +266,19 @@ export class LidarPointCloud {
 
       const pointData: PointCloudData = {
         positions,
-        classifications: tempClassifications, // Use the temporarily stored arrays
+        classifications: tempClassifications,
         intensities: tempIntensities
       };
 
-      const metadata = this.extractMetadata(header, { minX: minX_reproj, maxX: maxX_reproj, minY: minY_reproj, maxY: maxY_reproj, minZ: minZ_reproj, maxZ: maxZ_reproj }, sourceEpsg, targetEpsg);
-      
+      // Refactor: Create originalBounds from header values
+      const originalBounds = new THREE.Box3(
+        new THREE.Vector3(header.minX, header.minY, header.minZ),
+        new THREE.Vector3(header.maxX, header.maxY, header.maxZ)
+      );
+
+      // Refactor: Pass the Box3 objects directly to extractMetadata
+      const metadata = this.extractMetadata(header, originalBounds, targetBounds, sourceEpsg, targetEpsg);
+
       return new LidarPointCloud(header, pointData, metadata);
 
     } catch (error) {
@@ -282,12 +286,10 @@ export class LidarPointCloud {
     }
   }
 
-  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer, sourceEpsg: string, targetEpsg: string): PointCloudData {
-    // This function is no longer called directly by fromLASFile.
-    // Its logic has been integrated into fromLASFile for the two-pass approach.
-    // You can remove this function if it's not used elsewhere.
-    throw new Error("parsePointData is deprecated. Use fromLASFile directly for reprojection logic.");
-  }
+  // parsePointData is still marked as deprecated and removed in previous code.
+  // private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer, sourceEpsg: string, targetEpsg: string): PointCloudData {
+  //   throw new Error("parsePointData is deprecated. Use fromLASFile directly for reprojection logic.");
+  // }
 
   private static parseLASHeader(data: ArrayBuffer): LASHeader {
     const view = new DataView(data);
@@ -368,19 +370,16 @@ export class LidarPointCloud {
     }
   }
 
-  private static extractMetadata(header: LASHeader, reprojectedBounds: LidarMetadata['reprojectedBounds'], sourceEpsg: string, targetEpsg: string): LidarMetadata {
+  // Refactor: extractMetadata now accepts THREE.Box3 objects for bounds
+  private static extractMetadata(header: LASHeader, originalBounds: THREE.Box3, targetBounds: THREE.Box3, sourceEpsg: string, targetEpsg: string): LidarMetadata {
     const creationDate = header.creationYear > 0
       ? `${header.creationYear}-${header.creationDayOfYear.toString().padStart(3, '0')}`
       : 'Unknown';
 
     return {
       pointCount: header.numberOfPointRecords,
-      originalBounds: {
-        minX: header.minX, maxX: header.maxX,
-        minY: header.minY, maxY: header.maxY,
-        minZ: header.minZ, maxZ: header.maxZ
-      },
-      reprojectedBounds: reprojectedBounds, // Store the calculated reprojected bounds
+      originalBounds: originalBounds, // Pass the Box3 directly
+      targetBounds: targetBounds, // Pass the Box3 directly
       pointFormat: header.pointDataRecordFormat,
       version: `${header.versionMajor}.${header.versionMinor}`,
       creationDate,
@@ -389,7 +388,7 @@ export class LidarPointCloud {
       scaleFactor: {
         x: header.xScaleFactor, y: header.yScaleFactor, z: header.zScaleFactor
       },
-      offset: { // This is the original LAS file offset
+      offset: {
         x: header.xOffset, y: header.yOffset, z: header.zOffset
       },
       sourceEpsg: sourceEpsg,

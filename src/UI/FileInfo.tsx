@@ -58,9 +58,9 @@ export const FileInfo: React.FC<FileInfoProps> = ({
         marginBottom: '12px'
       }}>
         <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>Bounds:</div>
-        <div>X: {pointCloud.getMetadata().reprojectedBounds.minX.toFixed(2)} to {pointCloud.getMetadata().reprojectedBounds.maxX.toFixed(2)}</div>
-        <div>Y: {pointCloud.getMetadata().reprojectedBounds.minY.toFixed(2)} to {pointCloud.getMetadata().reprojectedBounds.maxY.toFixed(2)}</div>
-        <div>Z: {pointCloud.getMetadata().reprojectedBounds.minZ.toFixed(2)} to {pointCloud.getMetadata().reprojectedBounds.maxZ?.toFixed(2)}</div>
+        <div>X: {pointCloud.getMetadata().targetBounds.min.x.toFixed(2)} to {pointCloud.getMetadata().targetBounds.max.x.toFixed(2)}</div>
+        <div>Y: {pointCloud.getMetadata().targetBounds.min.y.toFixed(2)} to {pointCloud.getMetadata().targetBounds.max.y.toFixed(2)}</div>
+        <div>Z: {pointCloud.getMetadata().targetBounds.min.z.toFixed(2)} to {pointCloud.getMetadata().targetBounds.max.z?.toFixed(2)}</div>
       </div>
 
       {/* System Information */}
