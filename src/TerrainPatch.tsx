@@ -7,9 +7,10 @@ import { PATCH_SIZE } from './utils/constants';
 
 interface TerrainPatchProps {
     patchId: string;
+    transparency: number;
 }
 
-function TerrainPatch({ patchId }: TerrainPatchProps) {
+function TerrainPatch({ patchId, transparency }: TerrainPatchProps) {
     console.log('TerrainPatch render for:', patchId);
 
     // Parse tile coordinates from patchId
@@ -92,7 +93,13 @@ function TerrainPatch({ patchId }: TerrainPatchProps) {
 
     return (
         <mesh position={[worldX, 0, worldZ]} geometry={geometry}>
-            <meshStandardMaterial map={finalTexture} wireframe={false} side={THREE.DoubleSide} />
+            <meshStandardMaterial 
+                map={finalTexture} 
+                wireframe={false} 
+                side={THREE.DoubleSide} 
+                transparent={true}
+                opacity={transparency}
+            />
         </mesh>
     );
 }

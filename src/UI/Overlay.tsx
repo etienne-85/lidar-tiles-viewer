@@ -17,6 +17,8 @@ interface OverlayUIProps {
   onRestoreTracking: () => void;
   cameraProjection: 'perspective' | 'orthographic';
   onCameraProjectionChange: (projection: 'perspective' | 'orthographic') => void;
+  terrainTransparency: number;
+  onTerrainTransparencyChange: (transparency: number) => void;
 }
 
 export const OverlayUI: React.FC<OverlayUIProps> = ({ 
@@ -31,7 +33,9 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
   isCameraTracking,
   onRestoreTracking,
   cameraProjection,
-  onCameraProjectionChange
+  onCameraProjectionChange,
+  terrainTransparency,
+  onTerrainTransparencyChange
 }) => {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -70,6 +74,8 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
         onRestoreTracking={onRestoreTracking}
         cameraProjection={cameraProjection}
         onCameraProjectionChange={onCameraProjectionChange}
+        terrainTransparency={terrainTransparency}
+        onTerrainTransparencyChange={onTerrainTransparencyChange}
       />
     </>
   );

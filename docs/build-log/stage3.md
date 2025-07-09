@@ -280,6 +280,34 @@ see `PointCloudData` interface added to Data Model section
 ***list remaining bugs, refactoring tasks, improvements, optimizations, required to complete current stage  ... here***
 
 ## Result & Comments
+### Out of plan features
+
+**Proposal: Free Camera Dragging Mode**
+Plan:
+1. Add camera tracking state to App component
+2. Use CameraControls event listener in Player component to detect when user starts dragging (currentAction === 2)
+3. Disable tracking on drag, keep camera position independent of player movement
+4. Conditional camera following based on tracking state
+Implementation approach:
+* Add isCameraTracking state to App component
+* In Player component, add event listener to CameraControls with addEventListener('control', ...)
+* Check camControls.currentAction === 2 to detect dragging and set tracking to false
+* Modify camera setTarget logic to only run when isCameraTracking is true
+Key changes:
+* App.tsx: Add isCameraTracking state and pass to components
+* Player.tsx: Add control event listener and conditional camera following
+* TerrainScene.tsx: Pass tracking props through
+
+**Orthographic camera support + ControlsPanel**
+
+```
+let's add new component ControlPanel.tsx, that will be used from Overlay, and will contain a button to restore camera tracking, as well as a toggle to switch between perspective (current) and orthographic (to be implemented) cameras.
+Make change required for supporting orthographic camera within TerrainScene.
+```
+
+**Terrain visibility toggle**
+Allow toggling terrain visibility from ControlsPanel
+
 ### Pitfalls
 `BUG#1` 
 

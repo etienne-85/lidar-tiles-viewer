@@ -5,13 +5,17 @@ interface ControlPanelProps {
   onRestoreTracking: () => void;
   cameraProjection: 'perspective' | 'orthographic';
   onCameraProjectionChange: (projection: 'perspective' | 'orthographic') => void;
+  terrainTransparency: number;
+  onTerrainTransparencyChange: (transparency: number) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
   isCameraTracking,
   onRestoreTracking,
   cameraProjection,
-  onCameraProjectionChange
+  onCameraProjectionChange,
+  terrainTransparency,
+  onTerrainTransparencyChange
 }) => {
   return (
     <div style={{
@@ -31,7 +35,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       WebkitBackdropFilter: 'blur(10px)',
       color: 'white',
     }}>
-      <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Camera Controls</h3>
+      <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Controls</h3>
       
       {/* Restore Camera Tracking Button */}
       {!isCameraTracking && (
@@ -91,6 +95,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       {/* Camera Status Indicator */}
       <div style={{ fontSize: '11px', color: '#ccc' }}>
         Tracking: {isCameraTracking ? 'ON' : 'OFF'}
+      </div>
+      
+      {/* Terrain Transparency Control */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <label style={{ fontSize: '12px' }}>Terrain Transparency:</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={terrainTransparency * 100}
+          onChange={(e) => onTerrainTransparencyChange(parseInt(e.target.value) / 100)}
+          style={{
+            width: '100%',
+            height: '4px',
+            background: '#666',
+            outline: 'none',
+            borderRadius: '2px'
+          }}
+        />
+        <div style={{ fontSize: '11px', color: '#ccc', textAlign: 'center' }}>
+          {Math.round(terrainTransparency * 100)}%
+        </div>
       </div>
     </div>
   );

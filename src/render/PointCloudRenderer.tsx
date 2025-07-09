@@ -51,7 +51,7 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
     const offsetY_meters_within_tile = tileBounds.maxY - targetBounds.min.y;
     console.log('PointCloudRenderer - Offset of LiDAR Min within Tile (meters):', offsetX_meters_within_tile, offsetY_meters_within_tile);
 
-    // Calculate the base position of the tile's bottom-left corner in scene units.
+    // Calculate tile's origin at bottom-left corner in scene units.
     // Assuming PATCH_SIZE is the size of one tile in scene units.
     const tileBaseX_sceneUnits = tileCol * PATCH_SIZE;
     const tileBaseY_sceneUnits = tileRow * PATCH_SIZE; // Corresponds to Three.js Z-axis
@@ -81,23 +81,24 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
 
     // Create colors based on classification
     const colorArray = new Float32Array(positions.length);
-    const tempColor = new Color();
+    const color = new Color();
     for (let i = 0; i < classifications.length; i++) {
       const classification = classifications[i];
       switch (classification) {
-        case 1: tempColor.setHex(0x808080); break; case 2: tempColor.setHex(0x8B4513); break;
-        case 3: tempColor.setHex(0x90EE90); break; case 4: tempColor.setHex(0x32CD32); break;
-        case 5: tempColor.setHex(0x228B22); break; case 6: tempColor.setHex(0xFF4500); break;
-        case 7: tempColor.setHex(0x800080); break; case 9: tempColor.setHex(0x0000FF); break;
-        case 10: tempColor.setHex(0x000000); break; case 11: tempColor.setHex(0x696969); break;
-        case 12: tempColor.setHex(0xFFFFFF); break; case 13: tempColor.setHex(0xFFD700); break;
-        case 14: tempColor.setHex(0xFFA500); break; case 15: tempColor.setHex(0x8B0000); break;
-        case 16: tempColor.setHex(0xDC143C); break; case 17: tempColor.setHex(0x4B0082); break;
-        case 18: tempColor.setHex(0xFF1493); break; default: tempColor.setHex(0x404040); break;
+        case 1: color.setHex(0x808080); break; case 2: color.setHex(0x8B4513); break;
+        case 3: color.setHex(0x90EE90); break; case 4: color.setHex(0x32CD32); break;
+        case 5: color.setHex(0x228B22); break; case 6: color.setHex(0xFF4500); break;
+        case 7: color.setHex(0x800080); break; case 9: color.setHex(0x0000FF); break;
+        case 10: color.setHex(0x000000); break; case 11: color.setHex(0x696969); break;
+        case 12: color.setHex(0xFFFFFF); break; case 13: color.setHex(0xFFD700); break;
+        case 14: color.setHex(0xFFA500); break; case 15: color.setHex(0x8B0000); break;
+        case 16: color.setHex(0xDC143C); break; case 17: color.setHex(0x4B0082); break;
+        case 18: color.setHex(0xFF1493); break; default: color.setHex(0x404040); break;
       }
-      colorArray[i * 3] = tempColor.r;
-      colorArray[i * 3 + 1] = tempColor.g;
-      colorArray[i * 3 + 2] = tempColor.b;
+      color.setHex(0xFFFFFF)
+      colorArray[i * 3] = color.r;
+      colorArray[i * 3 + 1] = color.g;
+      colorArray[i * 3 + 2] = color.b;
     }
     geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
 
@@ -109,7 +110,7 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
   // Since positions are already in meters (relative to reprojected min),
   // we apply SCALE_METERS_TO_SCENE_UNITS directly to the group.
   const groupScale = new Vector3(SCALE_METERS_TO_SCENE_UNITS, 1, SCALE_METERS_TO_SCENE_UNITS)
-  .multiply(new Vector3(8.35,1,8.36));
+  .multiply(new Vector3(8.35,1.2,8.36));
 
   return (
     // Apply the calculated position and uniform scale to the <group>
@@ -117,7 +118,7 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
       <points geometry={geometry}>
         <pointsMaterial
           vertexColors={true}
-          size={0.25} // Adjust point size relative to scene units
+          size={0.1} // Adjust point size relative to scene units
           sizeAttenuation={true}
         />
       </points>

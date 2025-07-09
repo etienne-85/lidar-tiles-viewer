@@ -23,6 +23,7 @@ function App() {
   ]);
   const [isCameraTracking, setIsCameraTracking] = useState(true);
   const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('perspective');
+  const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);
@@ -90,6 +91,7 @@ function App() {
         isCameraTracking={isCameraTracking}
         onCameraTrackingChange={setIsCameraTracking}
         cameraProjection={cameraProjection}
+        terrainTransparency={terrainTransparency}
       />
       
       <OverlayUI
@@ -105,6 +107,8 @@ function App() {
         onRestoreTracking={handleRestoreTracking}
         cameraProjection={cameraProjection}
         onCameraProjectionChange={setCameraProjection}
+        terrainTransparency={terrainTransparency}
+        onTerrainTransparencyChange={setTerrainTransparency}
       />
     </div>
   );

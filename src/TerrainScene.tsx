@@ -16,6 +16,7 @@ interface TerrainSceneProps {
   isCameraTracking: boolean;
   onCameraTrackingChange: (tracking: boolean) => void;
   cameraProjection: 'perspective' | 'orthographic';
+  terrainTransparency: number;
 }
 
 export const TerrainScene = ({ 
@@ -25,7 +26,8 @@ export const TerrainScene = ({
   pointCloud,
   isCameraTracking,
   onCameraTrackingChange,
-  cameraProjection
+  cameraProjection,
+  terrainTransparency
 }: TerrainSceneProps) => {
   // Calculate initial camera position from player position
   const initialCameraX = playerPosition[0];
@@ -58,7 +60,7 @@ export const TerrainScene = ({
       key={cameraProjection} // Force remount when camera projection changes
       orthographic={cameraProjection === 'orthographic'}
       camera={cameraConfig}
-      style={{ width: '100%', height: '100%', backgroundColor: 'white' }}
+      style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
     >
       <Player 
         position={playerPosition} 
@@ -73,7 +75,7 @@ export const TerrainScene = ({
       
       {/* Terrain patches */}
       {visiblePatchIds.map(patchId => (
-        <TerrainPatch key={patchId} patchId={patchId} />
+        <TerrainPatch key={patchId} patchId={patchId} transparency={terrainTransparency} />
       ))}
       
       {/* Point cloud rendering */}
