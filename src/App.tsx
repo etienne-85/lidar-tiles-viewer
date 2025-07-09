@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TerrainScene } from './TerrainScene';
 import { OverlayUI } from './UI/Overlay';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
@@ -85,11 +85,12 @@ const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
     setIsCameraTracking(true);
   };
 
-  const handleTileHover = (tileId: string | null) => {
+  // Memoize handleTileHover to prevent unnecessary rerenders
+  const handleTileHover = useCallback((tileId: string | null) => {
     if (isTileSelectionActive) {
       setHoveredTileId(tileId);
     }
-  };
+  }, [isTileSelectionActive]);
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>

@@ -98,7 +98,7 @@ function TerrainPatch({
         geo.computeVertexNormals();
 
         return geo;
-    }, [patchId, worldX, worldZ]);
+    }, [patchId]);
 
     // Handle tile hover events
     const handlePointerEnter = () => {
