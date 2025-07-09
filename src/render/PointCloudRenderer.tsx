@@ -1,91 +1,86 @@
-// src/components/PointCloudRenderer.tsx
-
 import React, { useMemo } from 'react';
 import { BufferGeometry, BufferAttribute, Color, Vector3 } from 'three';
 import { LidarPointCloud } from '../data/LidarPointCloud';
-import { lambert93ToWebMercator, webMercatorToTile, MAX_WEB_MERCATOR, getWebMercatorBoundsFromTile } from '../utils/proj';
+import { webMercatorToTile, getWebMercatorBoundsFromTile, MAX_WEB_MERCATOR } from '../utils/proj'; // Updated imports
 import { PATCH_SIZE, ZOOM_LEVEL } from '../utils/constants';
 
 interface PointCloudRendererProps {
   pointCloud: LidarPointCloud;
 }
 
+// Define a global scale factor to convert meters (from reprojected data) to Three.js scene units
+// If 1 Three.js unit = 1 meter, then SCALE_METERS_TO_SCENE_UNITS = 1.
+// If 1 Three.js unit = 100 meters, then SCALE_METERS_TO_SCENE_UNITS = 0.01.
+// Adjust this based on how large you want your scene units to be relative to real-world meters.
+const SCALE_METERS_TO_SCENE_UNITS = 0.1; // Example: 1 meter = 0.1 Three.js units (1 Three.js unit = 10 meters)
+
 export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
   pointCloud
 }) => {
-  const { geometry, colors, groupPosition, groupScale } = useMemo(() => { // Added groupScale to memoized return
-    const positions = pointCloud.getPoints(); // These are still in meters (relative to LiDAR min)
+  const { geometry, colors, groupPosition } = useMemo(() => {
+    // These positions are now relative to the reprojected min bounds (in meters)
+    // and are already axis-remapped (X, Z->Y, Y->-Z).
+    const positions = pointCloud.getPoints();
     const classifications = pointCloud.getClassifications();
     const metadata = pointCloud.getMetadata();
 
     console.log('PointCloudRenderer - Point count:', positions.length / 3);
-    console.log('PointCloudRenderer - First 10 centered positions (in meters):', positions.slice(0, 30));
-    console.log('PointCloudRenderer - Bounds from metadata:', metadata.bounds);
-    //console.log('PointCloudRenderer - Calculated LiDAR (Lambert 93) min bounds:', metadata.sceneOffset);
+    console.log('PointCloudRenderer - First 10 relative positions (in meters, reprojected):', positions.slice(0, 30));
+    console.log('PointCloudRenderer - Original LiDAR Bounds:', metadata.originalBounds);
+    console.log('PointCloudRenderer - Reprojected LiDAR Bounds (in target CRS meters):', metadata.reprojectedBounds);
 
-    // Calculate the real-world meter extent of one WMTS tile at the given zoom level
-    const n = Math.pow(2, ZOOM_LEVEL);
-    const metersPerWmtsTile = (2 * MAX_WEB_MERCATOR) / n; // e.g., ~76.437 meters for zoom 19
+    // The point cloud data is now relative to its reprojected min bounds.
+    // We need to determine where this reprojected min bound sits in the global tile grid.
 
-    // Determine how many meters correspond to one of YOUR SCENE'S fundamental units (which is SCENE_PATCH_UNIT_SIZE / SCENE_PATCH_UNIT_SIZE)
-    // Effectively, one "scene unit" is `metersPerWmtsTile / SCENE_PATCH_UNIT_SIZE` meters.
-    const metersPerSceneUnit = metersPerWmtsTile / PATCH_SIZE; 
-    console.log('PointCloudRenderer - Meters per WMTS tile at zoom', ZOOM_LEVEL, ':', metersPerWmtsTile);
-    console.log('PointCloudRenderer - SCENE_PATCH_UNIT_SIZE (your scene units per patch):', PATCH_SIZE);
-    console.log('PointCloudRenderer - Calculated Meters per Scene Unit:', metersPerSceneUnit);
+    // Get the reprojected min X, Y of the LiDAR data (these are in target CRS meters)
+    const lidarMinX_reproj = metadata.reprojectedBounds.minX;
+    const lidarMinY_reproj = metadata.reprojectedBounds.minY;
+    const lidarMinZ_reproj = metadata.reprojectedBounds.minZ; // This is the actual min Z altitude
 
-    // The scale factor to apply to the group to convert from meters (LiDAR data) to scene units.
-    // If 1 scene unit = 1.194 meters, then 1 meter = 1 / 1.194 scene units.
-    let groupScale = new Vector3(1.067, 1, 1.035).multiplyScalar(metersPerSceneUnit);
-    groupScale = new Vector3(1.067, 1, 1.035).multiplyScalar(metersPerSceneUnit);
-        //groupScale = new Vector3(1, 1, 1)
-    let groupOffset = new Vector3(-10, 8, 10)
-    // groupOffset = new Vector3(0, 0, 0) 
+    // Determine the tile (col, row) that contains the reprojected minX, minY of the LiDAR data
+    const { tileCol, tileRow } = webMercatorToTile(lidarMinX_reproj, lidarMinY_reproj, ZOOM_LEVEL);
+    console.log('PointCloudRenderer - LiDAR Reprojected Min (target CRS) Tile (col, row):', tileCol, tileRow);
 
-    // 2. Reproject LiDAR's Lambert 93 origin to Web Mercator (EPSG:3857) (these are in meters)
-    const [webMercatorX, webMercatorY] = lambert93ToWebMercator(metadata.bounds.minX, metadata.bounds.minY);
-    console.log('PointCloudRenderer - LiDAR origin in Web Mercator (meters):', webMercatorX, webMercatorY);
-
-    // 3. Determine the tile (col, row) at the given zoom level that contains this Web Mercator point
-    const { tileCol, tileRow } = webMercatorToTile(webMercatorX, webMercatorY, ZOOM_LEVEL);
-
-    // 4. Calculate the scene world coordinates for the bottom-left of this tile.
-    // These are already in your scene's desired units (e.g., 64 units per patch)
-    // We are setting the GROUP's position in scene units.
-    const sceneTileBottomLeftX_units = tileCol * PATCH_SIZE;
-    const sceneTileBottomLeftY_units = tileRow * PATCH_SIZE; // Corresponds to scene Z for Three.js
-
-    // Now, determine the *offset within that tile* in meters.
-    // This requires the getWebMercatorBoundsFromTile function
+    // Calculate the Web Mercator bounds of this tile
     const tileBounds = getWebMercatorBoundsFromTile(tileCol, tileRow, ZOOM_LEVEL);
-    const offsetX_meters = webMercatorX - tileBounds.minX;
-    const offsetY_meters = tileBounds.maxY - webMercatorY; // Y is inverted for tiles
+    console.log('PointCloudRenderer - Tile Bounds (target CRS meters):', tileBounds);
 
-    // Convert these offsets from meters to your scene units for the group's position
-    const offsetX_units = offsetX_meters * groupScale.x; // Apply groupScale here
-    const offsetY_units = -offsetY_meters * groupScale.y; // Apply groupScale here
+    // Calculate the offset of the LiDAR's reprojected min point *within* its tile, in meters
+    const offsetX_meters_within_tile = lidarMinX_reproj - tileBounds.minX;
+    // For Y, tile rows increase downwards, but Web Mercator Y increases upwards.
+    // So, we need to calculate distance from the *top* of the tile (maxY)
+    const offsetY_meters_within_tile = tileBounds.maxY - lidarMinY_reproj;
+    console.log('PointCloudRenderer - Offset of LiDAR Min within Tile (meters):', offsetX_meters_within_tile, offsetY_meters_within_tile);
 
-    // The final group position should be the tile's scene unit origin + the offset within the tile in scene units
-    // The Y (height) component for the group is the LiDAR's original minZ, also scaled to scene units.
-    const groupPositionX = sceneTileBottomLeftX_units + offsetX_units + groupOffset.x;
-    const groupPositionY = metadata.bounds.minZ + groupOffset.y; // Scale minZ to scene units for group's height
-    const groupPositionZ = sceneTileBottomLeftY_units + offsetY_units + groupOffset.z; // Three.js Z is negative of scene Y
+    // Calculate the base position of the tile's bottom-left corner in scene units.
+    // Assuming PATCH_SIZE is the size of one tile in scene units.
+    const tileBaseX_sceneUnits = tileCol * PATCH_SIZE;
+    const tileBaseY_sceneUnits = tileRow * PATCH_SIZE; // Corresponds to Three.js Z-axis
 
-    const groupPosition = [groupPositionX, groupPositionY, groupPositionZ] as [number, number, number]; 
-    console.log('PointCloudRenderer - LiDAR origin tile (col, row):', tileCol, tileRow);
-    console.log('PointCloudRenderer - Offset within tile (meters):', offsetX_meters, offsetY_meters);
-    console.log('PointCloudRenderer - Offset within tile (scene units):', offsetX_units, offsetY_units);
-    console.log('PointCloudRenderer - Calculated Scene Group Position:', groupPosition);
+    // Convert the offset within the tile from meters to scene units
+    const offsetX_sceneUnits = offsetX_meters_within_tile * SCALE_METERS_TO_SCENE_UNITS;
+    const offsetY_sceneUnits = offsetY_meters_within_tile * SCALE_METERS_TO_SCENE_UNITS;
+
+    // The group's position should be:
+    // 1. The base position of the tile in scene units.
+    // 2. PLUS the offset of the LiDAR's reprojected min point *within* that tile, converted to scene units.
+    // 3. PLUS the actual min Z altitude of the LiDAR data, converted to scene units, for the Y-axis.
+
+    const groupPositionX = tileBaseX_sceneUnits + offsetX_sceneUnits + 20;
+    const groupPositionY = lidarMinZ_reproj; // Z altitude becomes Y in Three.js
+    const groupPositionZ = tileBaseY_sceneUnits + offsetY_sceneUnits + 24; // Tile Y becomes negative Z in Three.js
+
+    const groupPosition = new Vector3(groupPositionX, groupPositionY, groupPositionZ);
+    console.log('PointCloudRenderer - Calculated Scene Group Position (Three.js units):', groupPosition);
     console.log('PointCloudRenderer - Player Tile Coordinates (for comparison):', 268410, 181780);
     console.log('PointCloudRenderer - Player Scene Coordinates (for comparison):', 268410 * PATCH_SIZE, 181780 * PATCH_SIZE);
 
 
-    // Create geometry using the ORIGINAL positions (in meters)
+    // Create geometry using the already relative and axis-remapped positions
     const geometry = new BufferGeometry();
-    geometry.setAttribute('position', new BufferAttribute(positions, 3)); // Use original positions (in meters)
+    geometry.setAttribute('position', new BufferAttribute(positions, 3));
 
     // Create colors based on classification
-    // ... (color logic remains unchanged)
     const colorArray = new Float32Array(positions.length);
     const tempColor = new Color();
     for (let i = 0; i < classifications.length; i++) {
@@ -107,16 +102,23 @@ export const PointCloudRenderer: React.FC<PointCloudRendererProps> = ({
     }
     geometry.setAttribute('color', new BufferAttribute(colorArray, 3));
 
-    return { geometry, colors: colorArray, groupPosition, groupScale }; // Return groupScale
+    return { geometry, colors: colorArray, groupPosition };
   }, [pointCloud]);
 
+  // The scale will now be applied to the individual points within the geometry
+  // or a uniform scale on the group if you want to scale the entire cloud.
+  // Since positions are already in meters (relative to reprojected min),
+  // we apply SCALE_METERS_TO_SCENE_UNITS directly to the group.
+  const groupScale = new Vector3(SCALE_METERS_TO_SCENE_UNITS, 1, SCALE_METERS_TO_SCENE_UNITS)
+  .multiply(new Vector3(8.35,1,8.36));
+
   return (
-    // Apply the calculated scale to the <group>
+    // Apply the calculated position and uniform scale to the <group>
     <group position={groupPosition} scale={groupScale}>
       <points geometry={geometry}>
         <pointsMaterial
           vertexColors={true}
-          size={0.1} // Point size might need slight adjustment based on new scale
+          size={0.25} // Adjust point size relative to scene units
           sizeAttenuation={true}
         />
       </points>

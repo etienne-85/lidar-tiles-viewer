@@ -22,7 +22,7 @@ function App() {
     initialPlayerZ
   ]);
   const [isCameraTracking, setIsCameraTracking] = useState(true);
-  const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('orthographic');
+  const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('perspective');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);

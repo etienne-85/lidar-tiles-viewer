@@ -1,36 +1,48 @@
-// src/utils/projection.ts
-
 import proj4 from 'proj4';
 
 // Standard constants for Web Mercator (EPSG:3857) calculations
 export const EARTH_RADIUS = 6378137; // Meters (WGS84 semi-major axis, used in Web Mercator)
 export const MAX_WEB_MERCATOR = EARTH_RADIUS * Math.PI; // Max extent in meters from the prime meridian/equator
 
-// Define Lambert 93 (EPSG:2154)
-// You can find these definitions on epsg.io (search for 2154)
-proj4.defs(
-  'EPSG:2154',
-  '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'
-);
-
-// Define Web Mercator (EPSG:3857) - used by most web maps (like PM tile sets)
-// This is often pre-defined in proj4js, but good to be explicit
-proj4.defs(
-  'EPSG:3857',
-  '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs +type=crs'
-);
+export const TILE_SIZE_PX = 256; // Standard tile pixel size for WMTS/OpenStreetMap
 
 /**
- * Converts Lambert 93 coordinates to Web Mercator (EPSG:3857).
- * @param x Lambert 93 X coordinate
- * @param y Lambert 93 Y coordinate
- * @returns [webMercatorX, webMercatorY]
+ * Initializes proj4 definitions for common coordinate systems.
+ * Call this once at application startup or when importing this module.
  */
-export function lambert93ToWebMercator(x: number, y: number): [number, number] {
-  return proj4('EPSG:2154', 'EPSG:3857', [x, y]);
+export function initializeProjections() {
+  // Define Lambert 93 (EPSG:2154)
+  // You can find these definitions on epsg.io (search for 2154)
+  proj4.defs(
+    'EPSG:2154',
+    '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'
+  );
+
+  // Define Web Mercator (EPSG:3857) - used by most web maps (like PM tile sets)
+  // This is often pre-defined in proj4js, but good to be explicit
+  proj4.defs(
+    'EPSG:3857',
+    '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs +type=crs'
+  );
+  // Add any other necessary projections here, e.g., WGS84 (EPSG:4326)
+  // proj4.defs("EPSG:4326", "+proj=longlat +datum=WGS84 +no_defs");
 }
 
-export const TILE_SIZE_PX = 256; // Standard tile pixel size for WMTS/OpenStreetMap
+// Call initialization immediately when the module is loaded
+initializeProjections();
+
+/**
+ * Converts coordinates from a source CRS to a target CRS.
+ * Assumes proj4 definitions for source and target are already loaded.
+ * @param sourceEpsg EPSG code of the source coordinate system (e.g., 'EPSG:2154')
+ * @param targetEpsg EPSG code of the target coordinate system (e.g., 'EPSG:3857')
+ * @param x X coordinate in source CRS
+ * @param y Y coordinate in source CRS
+ * @returns [x_transformed, y_transformed] in target CRS
+ */
+export function transformCoordinates(sourceEpsg: string, targetEpsg: string, x: number, y: number): [number, number] {
+  return proj4(sourceEpsg, targetEpsg, [x, y]);
+}
 
 /**
  * Converts a WMTS tile (col, row, zoom) to its Web Mercator (EPSG:3857) bounding box.

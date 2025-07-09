@@ -156,7 +156,7 @@ export function Player({ position, onPositionChange, isCameraTracking, onCameraT
     <>
       <CameraControls ref={controlsRef} />
       <mesh ref={meshRef} position={position}>
-        <cylinderGeometry args={[0.5, 0.5, 2, 8]} />
+        <cylinderGeometry args={[0.3, 0.3, 1, 8]} />
         <meshStandardMaterial color="#ff6b6b" />
       </mesh>
     </>

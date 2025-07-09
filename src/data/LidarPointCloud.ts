@@ -1,6 +1,5 @@
-// src/data/LidarPointCloud.ts
-
 import { createLazPerf } from 'laz-perf';
+import { transformCoordinates } from '../utils/proj'; // Import the new transformCoordinates function
 
 // LAS header structure based on LAS specification
 interface LASHeader {
@@ -39,13 +38,22 @@ interface LASHeader {
 // Public metadata interface
 export interface LidarMetadata {
   pointCount: number;
-  bounds: {
+  // Original bounds from LAS header
+  originalBounds: {
     minX: number;
     maxX: number;
     minY: number;
     maxY: number;
     minZ: number;
     maxZ: number;
+  };
+  // Bounds after reprojection to the target CRS (e.g., Web Mercator)
+  reprojectedBounds: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+    minZ: number; // Z remains the same, but we track its min/max
   };
   pointFormat: number;
   version: string;
@@ -62,11 +70,14 @@ export interface LidarMetadata {
     y: number;
     z: number;
   };
+  // Add EPSG codes for clarity
+  sourceEpsg: string;
+  targetEpsg: string;
 }
 
 // Structure of Arrays data format for efficient storage and rendering
 interface PointCloudData {
-  positions: Float32Array;
+  positions: Float32Array; // These will now be relative to reprojectedBounds.minX/Y/Z
   classifications: Uint8Array;
   intensities: Uint16Array;
 }
@@ -76,23 +87,24 @@ export class LidarPointCloud {
   private metadata: LidarMetadata;
   private pointData: PointCloudData;
 
-  private constructor(header: LASHeader, pointData: PointCloudData) {
+  private constructor(header: LASHeader, pointData: PointCloudData, metadata: LidarMetadata) {
     this.header = header;
     this.pointData = pointData;
-    this.metadata = this.extractMetadata();
+    this.metadata = metadata; // Use the calculated metadata
   }
 
-  static async fromLAZFile(file: File): Promise<LidarPointCloud> {
+  static async fromLAZFile(file: File, sourceEpsg: string = 'EPSG:2154', targetEpsg: string = 'EPSG:3857'): Promise<LidarPointCloud> {
     let lazPerf: any = null;
     let dataPointer: number = 0;
     let pointDataPointer: number = 0;
+    let laszip: any = null; // Declare laszip here, outside the try block
 
     try {
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
       lazPerf = await createLazPerf();
-      const laszip = new lazPerf.LASZip();
+      laszip = new lazPerf.LASZip(); // Initialize laszip here
 
       dataPointer = lazPerf._malloc(uint8Array.length);
       lazPerf.HEAPU8.set(uint8Array, dataPointer);
@@ -105,47 +117,88 @@ export class LidarPointCloud {
       const pointCount = header.numberOfPointRecords;
       const pointRecordLength = header.pointDataRecordLength;
 
-      // Allocate our final JavaScript TypedArrays
-      const positions = new Float32Array(pointCount * 3);
-      const classifications = new Uint8Array(pointCount);
-      const intensities = new Uint16Array(pointCount);
+      // Allocate temporary arrays to store all data in the first (and only) pass
+      const tempReprojectedPositions = new Float64Array(pointCount * 2); // X, Y in target CRS
+      const tempAltitudes = new Float64Array(pointCount); // Z (altitude)
+      const tempClassifications = new Uint8Array(pointCount); // Store classifications
+      const tempIntensities = new Uint16Array(pointCount); // Store intensities
 
-      // Allocate a small buffer in WASM memory for just ONE point
       pointDataPointer = lazPerf._malloc(pointRecordLength);
-
-      // Create a DataView that we will reuse to read from that WASM buffer
       const pointView = new DataView(lazPerf.HEAPU8.buffer, pointDataPointer, pointRecordLength);
 
-      // Loop and decompress one point at a time
+      let minX_reproj = Infinity, maxX_reproj = -Infinity;
+      let minY_reproj = Infinity, maxY_reproj = -Infinity;
+      let minZ_reproj = Infinity, maxZ_reproj = -Infinity;
+
+      // Single pass: Decompress, apply LAS scale/offset, reproject, find reprojected bounds, and store all attributes
       for (let i = 0; i < pointCount; i++) {
-        // Decompress the next point's data into our WASM buffer
         laszip.getPoint(pointDataPointer);
 
-        // Read attributes directly from the WASM buffer using our DataView
-        // Note: Offsets are for Point Data Record Format 6 (adjust if different format is needed)
         const rawX = pointView.getInt32(0, true);
         const rawY = pointView.getInt32(4, true);
         const rawZ = pointView.getInt32(8, true);
         const intensity = pointView.getUint16(12, true);
         const classification = pointView.getUint8(15);
 
-        // Apply original LAS scale and offset, then apply new scene offset
-        // AND PERFORM AXIS REMAPPING HERE!
-        positions[i * 3 + 0] = rawX * header.xScaleFactor + header.xOffset - header.minX; // X -> X
-        positions[i * 3 + 1] = rawZ * header.zScaleFactor + header.zOffset - header.minZ; // Z (height) -> Y
-        positions[i * 3 + 2] = (rawY * header.yScaleFactor + header.yOffset - header.minY) * -1; // Y -> -Z
+        // Calculate real-world coordinates in the original LAS CRS (e.g., Lambert 93)
+        const originalX = rawX * header.xScaleFactor + header.xOffset;
+        const originalY = rawY * header.yScaleFactor + header.yOffset;
+        const originalZ = rawZ * header.zScaleFactor + header.zOffset;
 
-        classifications[i] = classification;
-        intensities[i] = intensity;
+        // Reproject X, Y to the target CRS (e.g., Web Mercator)
+        const [reprojX, reprojY] = transformCoordinates(sourceEpsg, targetEpsg, originalX, originalY);
+
+        // Store reprojected X, Y and original Z (altitude)
+        tempReprojectedPositions[i * 2 + 0] = reprojX;
+        tempReprojectedPositions[i * 2 + 1] = reprojY;
+        tempAltitudes[i] = originalZ;
+
+        // Store classification and intensity
+        tempClassifications[i] = classification;
+        tempIntensities[i] = intensity;
+
+        // Update reprojected bounds
+        minX_reproj = Math.min(minX_reproj, reprojX);
+        maxX_reproj = Math.max(maxX_reproj, reprojX);
+        minY_reproj = Math.min(minY_reproj, reprojY);
+        maxY_reproj = Math.max(maxY_reproj, reprojY);
+        minZ_reproj = Math.min(minZ_reproj, originalZ);
+        maxZ_reproj = Math.max(maxZ_reproj, originalZ);
       }
 
-      const pointData: PointCloudData = { positions, classifications, intensities };
-      return new LidarPointCloud(header, pointData); // Pass the calculated offset
+      // Final positions array with offset and axis remapping
+      const positions = new Float32Array(pointCount * 3);
+      for (let i = 0; i < pointCount; i++) {
+        const reprojX = tempReprojectedPositions[i * 2 + 0];
+        const reprojY = tempReprojectedPositions[i * 2 + 1];
+        const originalZ = tempAltitudes[i];
+
+        // Apply offset (relative to reprojected min bounds) and axis remapping
+        // X -> X (relative to reprojected minX)
+        positions[i * 3 + 0] = reprojX - minX_reproj;
+        // Z (altitude) -> Y (relative to original minZ)
+        positions[i * 3 + 1] = originalZ - minZ_reproj;
+        // Y -> -Z (relative to reprojected minY, and then inverted for Three.js Z-axis)
+        positions[i * 3 + 2] = -(reprojY - minY_reproj);
+      }
+
+      const pointData: PointCloudData = {
+        positions,
+        classifications: tempClassifications,
+        intensities: tempIntensities
+      };
+
+      const metadata = this.extractMetadata(header, { minX: minX_reproj, maxX: maxX_reproj, minY: minY_reproj, maxY: maxY_reproj, minZ: minZ_reproj, maxZ: maxZ_reproj }, sourceEpsg, targetEpsg);
+      
+      return new LidarPointCloud(header, pointData, metadata);
 
     } catch (error) {
       throw new Error(`Failed to load LAZ file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      // Final cleanup of all allocated WASM memory
+      // Ensure laszip is closed if it was opened
+      if (laszip && laszip.close) { // Check if close function exists before calling
+          laszip.close();
+      }
       if (lazPerf) {
         if (dataPointer) lazPerf._free(dataPointer);
         if (pointDataPointer) lazPerf._free(pointDataPointer);
@@ -153,57 +206,87 @@ export class LidarPointCloud {
     }
   }
 
-  static async fromLASFile(file: File): Promise<LidarPointCloud> {
+  static async fromLASFile(file: File, sourceEpsg: string = 'EPSG:2154', targetEpsg: string = 'EPSG:3857'): Promise<LidarPointCloud> {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const header = this.parseLASHeader(arrayBuffer);
       this.validateHeader(header);
 
-      // Calculate the scene offset based on the header's min bounds
-      const sceneOffsetX = header.minX;
-      const sceneOffsetY = header.minY;
-      const sceneOffsetZ = header.minZ;
-      const sceneOffset = { x: sceneOffsetX, y: sceneOffsetY, z: sceneOffsetZ };
+      const pointCount = header.numberOfPointRecords;
+      const pointRecordLength = header.pointDataRecordLength;
+      const view = new DataView(arrayBuffer, header.offsetToPointData);
 
-      const pointDataBuffer = arrayBuffer.slice(header.offsetToPointData);
-      const pointData = this.parsePointData(header, pointDataBuffer, sceneOffset); // Pass sceneOffset
+      const tempReprojectedPositions = new Float64Array(pointCount * 2); // X, Y in target CRS
+      const tempAltitudes = new Float64Array(pointCount); // Z (altitude)
+      const tempClassifications = new Uint8Array(pointCount);
+      const tempIntensities = new Uint16Array(pointCount);
+
+      let minX_reproj = Infinity, maxX_reproj = -Infinity;
+      let minY_reproj = Infinity, maxY_reproj = -Infinity;
+      let minZ_reproj = Infinity, maxZ_reproj = -Infinity;
+
+      // First pass: Read, apply LAS scale/offset, reproject, and find reprojected bounds
+      for (let i = 0; i < pointCount; i++) {
+        const offset = i * pointRecordLength;
+
+        const rawX = view.getInt32(offset + 0, true);
+        const rawY = view.getInt32(offset + 4, true);
+        const rawZ = view.getInt32(offset + 8, true);
+        const intensity = view.getUint16(offset + 12, true);
+        const classification = view.getUint8(offset + 15);
+
+        const originalX = rawX * header.xScaleFactor + header.xOffset;
+        const originalY = rawY * header.yScaleFactor + header.yOffset;
+        const originalZ = rawZ * header.zScaleFactor + header.zOffset;
+
+        const [reprojX, reprojY] = transformCoordinates(sourceEpsg, targetEpsg, originalX, originalY);
+
+        tempReprojectedPositions[i * 2 + 0] = reprojX;
+        tempReprojectedPositions[i * 2 + 1] = reprojY;
+        tempAltitudes[i] = originalZ;
+        tempClassifications[i] = classification;
+        tempIntensities[i] = intensity;
+
+        minX_reproj = Math.min(minX_reproj, reprojX);
+        maxX_reproj = Math.max(maxX_reproj, reprojX);
+        minY_reproj = Math.min(minY_reproj, reprojY);
+        maxY_reproj = Math.max(maxY_reproj, reprojY);
+        minZ_reproj = Math.min(minZ_reproj, originalZ);
+        maxZ_reproj = Math.max(maxZ_reproj, originalZ);
+      }
+
+      // Second pass: Create final positions array with offset and axis remapping
+      const positions = new Float32Array(pointCount * 3);
+      for (let i = 0; i < pointCount; i++) {
+        const reprojX = tempReprojectedPositions[i * 2 + 0];
+        const reprojY = tempReprojectedPositions[i * 2 + 1];
+        const originalZ = tempAltitudes[i];
+
+        positions[i * 3 + 0] = reprojX - minX_reproj;
+        positions[i * 3 + 1] = originalZ - minZ_reproj;
+        positions[i * 3 + 2] = -(reprojY - minY_reproj);
+      }
+
+      const pointData: PointCloudData = {
+        positions,
+        classifications: tempClassifications, // Use the temporarily stored arrays
+        intensities: tempIntensities
+      };
+
+      const metadata = this.extractMetadata(header, { minX: minX_reproj, maxX: maxX_reproj, minY: minY_reproj, maxY: maxY_reproj, minZ: minZ_reproj, maxZ: maxZ_reproj }, sourceEpsg, targetEpsg);
       
-      return new LidarPointCloud(header, pointData); // Pass the calculated offset
+      return new LidarPointCloud(header, pointData, metadata);
 
     } catch (error) {
       throw new Error(`Failed to load LAS file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer, sceneOffset: { x: number; y: number; z: number }): PointCloudData {
-    const pointCount = header.numberOfPointRecords;
-    const pointRecordLength = header.pointDataRecordLength;
-    const view = new DataView(pointDataBuffer);
-
-    const positions = new Float32Array(pointCount * 3);
-    const classifications = new Uint8Array(pointCount);
-    const intensities = new Uint16Array(pointCount);
-
-    for (let i = 0; i < pointCount; i++) {
-      const offset = i * pointRecordLength;
-
-      const rawX = view.getInt32(offset + 0, true);
-      const rawY = view.getInt32(offset + 4, true);
-      const rawZ = view.getInt32(offset + 8, true);
-      const intensity = view.getUint16(offset + 12, true);
-      const classification = view.getUint8(offset + 15);
-
-      // Apply original LAS scale and offset, then apply new scene offset
-      // AND PERFORM AXIS REMAPPING HERE!
-      positions[i * 3 + 0] = (rawX * header.xScaleFactor + header.xOffset) - sceneOffset.x; // X -> X
-      positions[i * 3 + 1] = (rawZ * header.zScaleFactor + header.zOffset) - sceneOffset.z; // Z (height) -> Y
-      positions[i * 3 + 2] = ((rawY * header.yScaleFactor + header.yOffset) - sceneOffset.y) * -1; // Y -> -Z
-
-      classifications[i] = classification;
-      intensities[i] = intensity;
-    }
-
-    return { positions, classifications, intensities };
+  private static parsePointData(header: LASHeader, pointDataBuffer: ArrayBuffer, sourceEpsg: string, targetEpsg: string): PointCloudData {
+    // This function is no longer called directly by fromLASFile.
+    // Its logic has been integrated into fromLASFile for the two-pass approach.
+    // You can remove this function if it's not used elsewhere.
+    throw new Error("parsePointData is deprecated. Use fromLASFile directly for reprojection logic.");
   }
 
   private static parseLASHeader(data: ArrayBuffer): LASHeader {
@@ -274,8 +357,6 @@ export class LidarPointCloud {
     if (header.versionMajor !== 1) {
       throw new Error(`Unsupported LAS version: ${header.versionMajor}.${header.versionMinor}`);
     }
-    // Updated to support up to format 10, common in modern LAS files.
-    // Point Data Record Format 6 is common for modern files (includes extra attributes).
     if (header.pointDataRecordFormat > 10) {
       throw new Error(`Unsupported point data record format: ${header.pointDataRecordFormat}`);
     }
@@ -287,29 +368,32 @@ export class LidarPointCloud {
     }
   }
 
-  private extractMetadata(): LidarMetadata {
-    const creationDate = this.header.creationYear > 0
-      ? `${this.header.creationYear}-${this.header.creationDayOfYear.toString().padStart(3, '0')}`
+  private static extractMetadata(header: LASHeader, reprojectedBounds: LidarMetadata['reprojectedBounds'], sourceEpsg: string, targetEpsg: string): LidarMetadata {
+    const creationDate = header.creationYear > 0
+      ? `${header.creationYear}-${header.creationDayOfYear.toString().padStart(3, '0')}`
       : 'Unknown';
 
     return {
-      pointCount: this.header.numberOfPointRecords,
-      bounds: {
-        minX: this.header.minX, maxX: this.header.maxX,
-        minY: this.header.minY, maxY: this.header.maxY,
-        minZ: this.header.minZ, maxZ: this.header.maxZ
+      pointCount: header.numberOfPointRecords,
+      originalBounds: {
+        minX: header.minX, maxX: header.maxX,
+        minY: header.minY, maxY: header.maxY,
+        minZ: header.minZ, maxZ: header.maxZ
       },
-      pointFormat: this.header.pointDataRecordFormat,
-      version: `${this.header.versionMajor}.${this.header.versionMinor}`,
+      reprojectedBounds: reprojectedBounds, // Store the calculated reprojected bounds
+      pointFormat: header.pointDataRecordFormat,
+      version: `${header.versionMajor}.${header.versionMinor}`,
       creationDate,
-      systemIdentifier: this.header.systemIdentifier,
-      generatingSoftware: this.header.generatingSoftware,
+      systemIdentifier: header.systemIdentifier,
+      generatingSoftware: header.generatingSoftware,
       scaleFactor: {
-        x: this.header.xScaleFactor, y: this.header.yScaleFactor, z: this.header.zScaleFactor
+        x: header.xScaleFactor, y: header.yScaleFactor, z: header.zScaleFactor
       },
       offset: { // This is the original LAS file offset
-        x: this.header.xOffset, y: this.header.yOffset, z: this.header.zOffset
-      }
+        x: header.xOffset, y: header.yOffset, z: header.zOffset
+      },
+      sourceEpsg: sourceEpsg,
+      targetEpsg: targetEpsg,
     };
   }
 
