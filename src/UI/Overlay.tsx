@@ -19,14 +19,17 @@ interface OverlayUIProps {
   onCameraProjectionChange: (projection: 'perspective' | 'orthographic') => void;
   terrainTransparency: number;
   onTerrainTransparencyChange: (transparency: number) => void;
+  isTileSelectionActive: boolean;
+  onTileSelectionChange: (active: boolean) => void;
+  hoveredTileId: string | null;
 }
 
-export const OverlayUI: React.FC<OverlayUIProps> = ({ 
-  playerPosition, 
-  currentPatch, 
-  onFileLoaded, 
-  onFileError, 
-  selectedFile, 
+export const OverlayUI: React.FC<OverlayUIProps> = ({
+  playerPosition,
+  currentPatch,
+  onFileLoaded,
+  onFileError,
+  selectedFile,
   fileError,
   pointCloud,
   isProcessingFile,
@@ -35,9 +38,12 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
   cameraProjection,
   onCameraProjectionChange,
   terrainTransparency,
-  onTerrainTransparencyChange
+  onTerrainTransparencyChange,
+  isTileSelectionActive,
+  onTileSelectionChange,
+  hoveredTileId
 }) => {
-  const [isVisible, setIsVisible] = useState(true);
+const [isVisible, setIsVisible] = useState(true);
 
   // Toggle visibility with 'U' key
   useEffect(() => {
@@ -58,14 +64,14 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
       <TextOverlay 
         playerPosition={playerPosition}
         currentPatch={currentPatch}
-      />
+        />
       
       <SidebarOverlay
         onFileLoaded={onFileLoaded}
         onFileError={onFileError}
         selectedFile={selectedFile}
         fileError={fileError}
-        pointCloud={pointCloud}
+pointCloud={pointCloud}
         isProcessingFile={isProcessingFile}
       />
       
@@ -76,6 +82,9 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
         onCameraProjectionChange={onCameraProjectionChange}
         terrainTransparency={terrainTransparency}
         onTerrainTransparencyChange={onTerrainTransparencyChange}
+        isTileSelectionActive={isTileSelectionActive}
+        onTileSelectionChange={onTileSelectionChange}
+        hoveredTileId={hoveredTileId}
       />
     </>
   );

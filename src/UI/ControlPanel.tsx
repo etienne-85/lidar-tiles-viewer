@@ -7,6 +7,9 @@ interface ControlPanelProps {
   onCameraProjectionChange: (projection: 'perspective' | 'orthographic') => void;
   terrainTransparency: number;
   onTerrainTransparencyChange: (transparency: number) => void;
+  isTileSelectionActive: boolean;
+  onTileSelectionChange: (active: boolean) => void;
+  hoveredTileId: string | null;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -15,7 +18,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   cameraProjection,
   onCameraProjectionChange,
   terrainTransparency,
-  onTerrainTransparencyChange
+  onTerrainTransparencyChange,
+  isTileSelectionActive,
+  onTileSelectionChange,
+  hoveredTileId
 }) => {
   return (
     <div style={{
@@ -36,6 +42,38 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       color: 'white',
     }}>
       <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>Controls</h3>
+      
+      {/* Tile Selection Tool */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        <button
+          onClick={() => onTileSelectionChange(!isTileSelectionActive)}
+          style={{
+            background: isTileSelectionActive ? '#FF6B6B' : '#666',
+            color: 'white',
+            border: 'none',
+            padding: '8px 12px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: isTileSelectionActive ? 'bold' : 'normal'
+          }}
+        >
+          {isTileSelectionActive ? '🎯 Tile Selection: ON' : '🎯 Tile Selection: OFF'}
+        </button>
+        
+        {/* Show hovered tile info when selection is active */}
+        {isTileSelectionActive && (
+          <div style={{ 
+            fontSize: '11px', 
+            color: hoveredTileId ? '#FFD700' : '#ccc',
+            padding: '4px 8px',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '4px'
+          }}>
+            {hoveredTileId ? `Hovering: ${hoveredTileId}` : 'Hover over a tile'}
+          </div>
+        )}
+      </div>
       
       {/* Restore Camera Tracking Button */}
       {!isCameraTracking && (
@@ -96,7 +134,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       <div style={{ fontSize: '11px', color: '#ccc' }}>
         Tracking: {isCameraTracking ? 'ON' : 'OFF'}
       </div>
-      
+
       {/* Terrain Transparency Control */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
         <label style={{ fontSize: '12px' }}>Terrain Transparency:</label>

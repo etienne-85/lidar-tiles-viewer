@@ -8,9 +8,18 @@ import { PATCH_SIZE } from './utils/constants';
 interface TerrainPatchProps {
     patchId: string;
     transparency: number;
+    isTileSelectionActive: boolean;
+    isHighlighted: boolean;
+    onTileHover: (tileId: string | null) => void;
 }
 
-function TerrainPatch({ patchId, transparency }: TerrainPatchProps) {
+function TerrainPatch({ 
+    patchId, 
+    transparency,
+    isTileSelectionActive, 
+    isHighlighted, 
+    onTileHover 
+}: TerrainPatchProps) {
     console.log('TerrainPatch render for:', patchId);
 
     // Parse tile coordinates from patchId
@@ -91,10 +100,29 @@ function TerrainPatch({ patchId, transparency }: TerrainPatchProps) {
         return geo;
     }, [patchId, worldX, worldZ]);
 
+    // Handle tile hover events
+    const handlePointerEnter = () => {
+        if (isTileSelectionActive) {
+            onTileHover(patchId);
+        }
+    };
+
+    const handlePointerLeave = () => {
+        if (isTileSelectionActive) {
+            onTileHover(null);
+        }
+    };
+
     return (
-        <mesh position={[worldX, 0, worldZ]} geometry={geometry}>
+        <mesh 
+            position={[worldX, 0, worldZ]} 
+            geometry={geometry}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+        >
             <meshStandardMaterial 
                 map={finalTexture} 
+                color={isHighlighted ? 0xff6666 : 0xffffff} // Red tint when highlighted
                 wireframe={false} 
                 side={THREE.DoubleSide} 
                 transparent={true}

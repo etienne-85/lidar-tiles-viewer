@@ -23,11 +23,15 @@ function App() {
   ]);
   const [isCameraTracking, setIsCameraTracking] = useState(true);
   const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('perspective');
-  const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
+const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [pointCloud, setPointCloud] = useState<LidarPointCloud | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  
+  // Tile selection tool state
+  const [isTileSelectionActive, setIsTileSelectionActive] = useState(false);
+  const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
 
   // Update currentPatch when player moves
   useEffect(() => {
@@ -81,6 +85,12 @@ function App() {
     setIsCameraTracking(true);
   };
 
+  const handleTileHover = (tileId: string | null) => {
+    if (isTileSelectionActive) {
+      setHoveredTileId(tileId);
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <TerrainScene 
@@ -92,6 +102,9 @@ function App() {
         onCameraTrackingChange={setIsCameraTracking}
         cameraProjection={cameraProjection}
         terrainTransparency={terrainTransparency}
+        isTileSelectionActive={isTileSelectionActive}
+        hoveredTileId={hoveredTileId}
+        onTileHover={handleTileHover}
       />
       
       <OverlayUI
@@ -109,6 +122,9 @@ function App() {
         onCameraProjectionChange={setCameraProjection}
         terrainTransparency={terrainTransparency}
         onTerrainTransparencyChange={setTerrainTransparency}
+        isTileSelectionActive={isTileSelectionActive}
+        onTileSelectionChange={setIsTileSelectionActive}
+        hoveredTileId={hoveredTileId}
       />
     </div>
   );

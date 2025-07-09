@@ -17,6 +17,9 @@ interface TerrainSceneProps {
   onCameraTrackingChange: (tracking: boolean) => void;
   cameraProjection: 'perspective' | 'orthographic';
   terrainTransparency: number;
+  isTileSelectionActive: boolean;
+  hoveredTileId: string | null;
+  onTileHover: (tileId: string | null) => void;
 }
 
 export const TerrainScene = ({ 
@@ -27,7 +30,10 @@ export const TerrainScene = ({
   isCameraTracking,
   onCameraTrackingChange,
   cameraProjection,
-  terrainTransparency
+  terrainTransparency,
+  isTileSelectionActive,
+  hoveredTileId,
+  onTileHover
 }: TerrainSceneProps) => {
   // Calculate initial camera position from player position
   const initialCameraX = playerPosition[0];
@@ -75,7 +81,14 @@ export const TerrainScene = ({
       
       {/* Terrain patches */}
       {visiblePatchIds.map(patchId => (
-        <TerrainPatch key={patchId} patchId={patchId} transparency={terrainTransparency} />
+        <TerrainPatch 
+          key={patchId} 
+          patchId={patchId} 
+          transparency={terrainTransparency}
+          isTileSelectionActive={isTileSelectionActive}
+          isHighlighted={hoveredTileId === patchId}
+          onTileHover={onTileHover}
+        />
       ))}
       
       {/* Point cloud rendering */}
