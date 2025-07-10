@@ -26,7 +26,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   return (
     <div style={{
       position: 'absolute',
-      bottom: '20px',
+      top: '20px',
       right: '20px',
       padding: '15px',
       borderRadius: '8px',

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { TextOverlay } from './TextOverlay';
 import { SidebarOverlay } from './SidebarOverlay';
 import { ControlPanel } from './ControlPanel';
 import { LidarPointCloud } from '../data/LidarPointCloud';
+import { StatusBar } from './StatusBar';
 
 interface OverlayUIProps {
   playerPosition: [number, number, number];
@@ -61,30 +61,30 @@ const [isVisible, setIsVisible] = useState(true);
 
   return (
     <>
-      <TextOverlay 
-        playerPosition={playerPosition}
-        currentPatch={currentPatch}
-        />
-      
       <SidebarOverlay
         onFileLoaded={onFileLoaded}
         onFileError={onFileError}
         selectedFile={selectedFile}
         fileError={fileError}
-pointCloud={pointCloud}
+        pointCloud={pointCloud}
         isProcessingFile={isProcessingFile}
       />
-      
-      <ControlPanel
-        isCameraTracking={isCameraTracking}
-        onRestoreTracking={onRestoreTracking}
-        cameraProjection={cameraProjection}
-        onCameraProjectionChange={onCameraProjectionChange}
-        terrainTransparency={terrainTransparency}
-        onTerrainTransparencyChange={onTerrainTransparencyChange}
-        isTileSelectionActive={isTileSelectionActive}
-        onTileSelectionChange={onTileSelectionChange}
-        hoveredTileId={hoveredTileId}
+
+        <ControlPanel
+          isCameraTracking={isCameraTracking}
+          onRestoreTracking={onRestoreTracking}
+          cameraProjection={cameraProjection}
+          onCameraProjectionChange={onCameraProjectionChange}
+          terrainTransparency={terrainTransparency}
+          onTerrainTransparencyChange={onTerrainTransparencyChange}
+          isTileSelectionActive={isTileSelectionActive}
+          onTileSelectionChange={onTileSelectionChange}
+          hoveredTileId={hoveredTileId}
+        />
+      <StatusBar
+        playerPosition={playerPosition}
+        currentPatch={currentPatch}
+        highlightedTileId={hoveredTileId}
       />
     </>
   );
