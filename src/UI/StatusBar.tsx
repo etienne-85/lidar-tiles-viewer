@@ -1,17 +1,20 @@
 import React from 'react';
+import { EntityType } from '../common/types';
 
 interface StatusBarProps {
   playerPosition: [number, number, number];
   currentPatch: string;
   highlightedTileId?: string | null;
-  highlightedPoint?: { x: number; y: number; z: number } | null;
+  selectedItemType?: EntityType;
+  selectedItemCoords?: { x: number; y: number; z: number };
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
   playerPosition,
   currentPatch,
   highlightedTileId,
-  highlightedPoint
+  selectedItemType,
+  selectedItemCoords
 }) => {
   return (
     <div
@@ -50,8 +53,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         {highlightedTileId && (
           <span style={{ color: '#ffd700' }}>{`Highlighted Tile: ${highlightedTileId}`}</span>
         )}
-        {highlightedPoint && (
-          <span style={{ color: '#ffd700' }}>{`Highlighted Point: X=${highlightedPoint.x.toFixed(2)}, Y=${highlightedPoint.y.toFixed(2)}, Z=${highlightedPoint.z.toFixed(2)}`}</span>
+        {selectedItemType && selectedItemCoords && (
+          <span style={{ color: '#ff6666' }}>{`${selectedItemType}: ${selectedItemCoords.x.toFixed(2)},${selectedItemCoords.y.toFixed(2)},${selectedItemCoords.z.toFixed(2)}`}</span>
         )}
       </div>
     </div>

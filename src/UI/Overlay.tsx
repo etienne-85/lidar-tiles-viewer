@@ -3,6 +3,7 @@ import { SidebarOverlay } from './SidebarOverlay';
 import { ControlPanel } from './ControlPanel';
 import { LidarPointCloud } from '../data/LidarPointCloud';
 import { StatusBar } from './StatusBar';
+import { EntityType } from '../common/types';
 
 interface OverlayUIProps {
   playerPosition: [number, number, number];
@@ -22,6 +23,7 @@ interface OverlayUIProps {
   isTileSelectionActive: boolean;
   onTileSelectionChange: (active: boolean) => void;
   hoveredTileId: string | null;
+  selectedItem: { type: EntityType; coords: { x: number; y: number; z: number } } | null;
 }
 
 export const OverlayUI: React.FC<OverlayUIProps> = ({
@@ -41,7 +43,8 @@ export const OverlayUI: React.FC<OverlayUIProps> = ({
   onTerrainTransparencyChange,
   isTileSelectionActive,
   onTileSelectionChange,
-  hoveredTileId
+  hoveredTileId,
+  selectedItem
 }) => {
 const [isVisible, setIsVisible] = useState(true);
 
@@ -85,6 +88,8 @@ const [isVisible, setIsVisible] = useState(true);
         playerPosition={playerPosition}
         currentPatch={currentPatch}
         highlightedTileId={hoveredTileId}
+        selectedItemType={selectedItem?.type}
+        selectedItemCoords={selectedItem?.coords}
       />
     </>
   );

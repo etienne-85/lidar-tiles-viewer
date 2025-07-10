@@ -5,6 +5,7 @@ import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
 import { TILE_COL, TILE_ROW, PATCH_SIZE } from './utils/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
+import { EntityType } from './common/types';
 
 function App() {
   // Calculate initial world position from default tile coordinates
@@ -32,6 +33,10 @@ const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
   // Tile selection tool state
   const [isTileSelectionActive, setIsTileSelectionActive] = useState(false);
   const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<
+    | { type: EntityType; coords: { x: number; y: number; z: number } }
+    | null
+  >(null);
 
   // Update currentPatch when player moves
   useEffect(() => {
@@ -106,6 +111,8 @@ const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
         isTileSelectionActive={isTileSelectionActive}
         hoveredTileId={hoveredTileId}
         onTileHover={handleTileHover}
+        selectedItem={selectedItem}
+        setSelectedItem={setSelectedItem}
       />
       
       <OverlayUI
@@ -126,6 +133,7 @@ const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
         isTileSelectionActive={isTileSelectionActive}
         onTileSelectionChange={setIsTileSelectionActive}
         hoveredTileId={hoveredTileId}
+        selectedItem={selectedItem}
       />
     </div>
   );

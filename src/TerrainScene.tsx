@@ -7,6 +7,7 @@ import { usePatchPolling } from './hooks/usePatchPolling';
 
 import { TILE_RANGE } from './utils/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
+import { EntityType } from './common/types';
 
 interface TerrainSceneProps {
   playerPosition: [number, number, number];
@@ -20,6 +21,8 @@ interface TerrainSceneProps {
   isTileSelectionActive: boolean;
   hoveredTileId: string | null;
   onTileHover: (tileId: string | null) => void;
+  selectedItem: { type: EntityType; coords: { x: number; y: number; z: number } } | null;
+  setSelectedItem: (item: { type: EntityType; coords: { x: number; y: number; z: number } } | null) => void;
 }
 
 export const TerrainScene = ({ 
@@ -33,7 +36,9 @@ export const TerrainScene = ({
   terrainTransparency,
   isTileSelectionActive,
   hoveredTileId,
-  onTileHover
+  onTileHover,
+  selectedItem,
+  setSelectedItem
 }: TerrainSceneProps) => {
   // Calculate initial camera position from player position
   const initialCameraX = playerPosition[0];
@@ -67,6 +72,7 @@ export const TerrainScene = ({
       orthographic={cameraProjection === 'orthographic'}
       camera={cameraConfig}
       style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
+      onPointerMissed={() => setSelectedItem(null)}
     >
       <Player 
         position={playerPosition} 
@@ -92,7 +98,7 @@ export const TerrainScene = ({
       ))}
       
       {/* Point cloud rendering */}
-      {pointCloud && <PointCloudRenderer pointCloud={pointCloud} />}
+      {pointCloud && <PointCloudRenderer pointCloud={pointCloud} selectedItem={selectedItem} setSelectedItem={setSelectedItem} />}
     </Canvas>
   );
 };
