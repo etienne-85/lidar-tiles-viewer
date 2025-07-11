@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { getTerrainHeight, tileToWorldPosition } from './utils/grid';
-import { usePatchProceduralTexture } from './hooks/usePatchProceduralTexture';
-import { useImageryTiles } from './hooks/useImageryTiles';
-import { PATCH_SIZE } from './utils/constants';
+import { getTerrainHeight, tileToWorldPosition } from '../utils/grid';
+import { usePatchProceduralTexture } from '../hooks/usePatchProceduralTexture';
+import { useImageryTiles } from '../hooks/useImageryTiles';
+import { PATCH_SIZE } from '../utils/constants';
 
 interface TerrainPatchProps {
     patchId: string;

@@ -6,7 +6,7 @@
 
 ### Stage 2: Satellite imagery tiles integration ✅ **COMPLETE**
 
-### Stage 3: LIDAR point cloud
+### Stage 3: LIDAR point cloud 
 show point cloud above tile based terrain
 
 ### Stage 4: LIDAR integration with terrain patch

@@ -1,13 +1,15 @@
 import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
-import { Player } from './Player';
-import { TerrainPatch } from './TerrainPatch';
-import { PointCloudRenderer } from './render/PointCloudRenderer';
+
+import { Player } from './render/Player';
+import { TerrainPatch } from './render/TerrainPatch';
 import { usePatchPolling } from './hooks/usePatchPolling';
 
 import { TILE_RANGE } from './utils/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
 import { EntityType } from './common/types';
+import { PointCloudLegacy } from './render/PointCloudLegacy';
+import { PointCloud } from './render/PointCloud';
 
 interface TerrainSceneProps {
   playerPosition: [number, number, number];
@@ -74,12 +76,7 @@ export const TerrainScene = ({
       style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
       onPointerMissed={() => setSelectedItem(null)}
     >
-      <Player 
-        position={playerPosition} 
-        onPositionChange={onPlayerPositionChange}
-        isCameraTracking={isCameraTracking}
-        onCameraTrackingChange={onCameraTrackingChange}
-      />
+      
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
       <Grid args={[100, 100]} />
@@ -96,9 +93,20 @@ export const TerrainScene = ({
           onTileHover={onTileHover}
         />
       ))}
-      
+
+      {/* Player */}
+      <Player 
+        position={playerPosition} 
+        onPositionChange={onPlayerPositionChange}
+        isCameraTracking={isCameraTracking}
+        onCameraTrackingChange={onCameraTrackingChange}
+      />
+
       {/* Point cloud rendering */}
-      {pointCloud && <PointCloudRenderer pointCloud={pointCloud} selectedItem={selectedItem} setSelectedItem={setSelectedItem} />}
+      {/* {pointCloud && <PointCloudLegacy pointCloud={pointCloud} selectedItem={selectedItem} setSelectedItem={setSelectedItem} />} */}
+      
+      {/* Debug visualization (temporarily replacing PointCloud) */}
+      {pointCloud && <PointCloud pointCloud={pointCloud} />}
     </Canvas>
   );
 };

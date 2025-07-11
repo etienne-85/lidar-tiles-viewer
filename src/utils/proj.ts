@@ -1,10 +1,14 @@
+import { Vector3 } from 'three';
 import proj4 from 'proj4';
+import { LidarPointCloud } from '../data/LidarPointCloud';
+import { PATCH_SIZE, ZOOM_LEVEL } from './constants';
 
 // Standard constants for Web Mercator (EPSG:3857) calculations
 export const EARTH_RADIUS = 6378137; // Meters (WGS84 semi-major axis, used in Web Mercator)
 export const MAX_WEB_MERCATOR = EARTH_RADIUS * Math.PI; // Max extent in meters from the prime meridian/equator
 
 export const TILE_SIZE_PX = 256; // Standard tile pixel size for WMTS/OpenStreetMap
+const SCALE_METERS_TO_SCENE_UNITS = 0.1;
 
 /**
  * Initializes proj4 definitions for common coordinate systems.
@@ -100,3 +104,43 @@ export function webMercatorToTile(
   
     return { tileCol, tileRow };
   }
+
+/**
+ * Calculates the scene position for a point cloud group based on its Web Mercator coordinates
+ * @param pointCloud The point cloud data
+ * @returns Vector3 position in scene units
+ */
+export function calculateGroupPosition(pointCloud: LidarPointCloud): Vector3 {
+  const { targetBounds } = pointCloud.getMetadata();
+  const minAltitude = targetBounds.min.z;
+
+  const { tileCol, tileRow } = webMercatorToTile(targetBounds.min.x, targetBounds.min.y, ZOOM_LEVEL);
+  const tileBounds = getWebMercatorBoundsFromTile(tileCol, tileRow, ZOOM_LEVEL);
+
+  const offsetX_meters_within_tile = targetBounds.min.x - tileBounds.minX;
+  const offsetY_meters_within_tile = tileBounds.maxY - targetBounds.min.y;
+
+  const tileBaseX_sceneUnits = tileCol * PATCH_SIZE;
+  const tileBaseY_sceneUnits = tileRow * PATCH_SIZE;
+
+  const offsetX_sceneUnits = offsetX_meters_within_tile * SCALE_METERS_TO_SCENE_UNITS;
+  const offsetY_sceneUnits = offsetY_meters_within_tile * SCALE_METERS_TO_SCENE_UNITS;
+
+  const groupPositionX = tileBaseX_sceneUnits + offsetX_sceneUnits + 20;
+  const groupPositionY = minAltitude;
+  const groupPositionZ = tileBaseY_sceneUnits + offsetY_sceneUnits + 24;
+
+  return new Vector3(groupPositionX, groupPositionY, groupPositionZ);
+}
+
+/**
+ * Calculates the scale for a point cloud group
+ * @returns Vector3 scale factors
+ */
+export function calculateGroupScale(): Vector3 {
+  return new Vector3(
+    SCALE_METERS_TO_SCENE_UNITS,
+    1,
+    SCALE_METERS_TO_SCENE_UNITS
+  ).multiply(new Vector3(8.35, 1.2, 8.36));
+}

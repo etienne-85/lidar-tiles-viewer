@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CameraControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { getTerrainHeight } from './utils/grid';
+import { getTerrainHeight } from '../utils/grid';
 
 interface PlayerProps {
   position: [number, number, number];
