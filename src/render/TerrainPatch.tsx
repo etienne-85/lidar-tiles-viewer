@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { getTerrainHeight, tileToWorldPosition } from '../utils/grid';
+import { tileToWorldPosition } from '../utils/grid';
 import { usePatchProceduralTexture } from '../hooks/usePatchProceduralTexture';
 import { useImageryTiles } from '../hooks/useImageryTiles';
-import { PATCH_SIZE } from '../utils/constants';
+import { PATCH_SIZE, TERRAIN_HEIGHT } from '../common/constants';
 
 interface TerrainPatchProps {
     patchId: string;
@@ -26,7 +26,7 @@ function TerrainPatch({
     const [tileCol, tileRow] = patchId.split(':').map(Number);
 
     // Convert tile coordinates to world position (corner of patch)
-    const [worldX, worldZ] = tileToWorldPosition(tileCol, tileRow);
+    const worldCoords = tileToWorldPosition(tileCol, tileRow);
 
     // Dual texture system: satellite imagery with procedural fallback
     const satelliteTexture = useImageryTiles(patchId);
@@ -56,14 +56,9 @@ function TerrainPatch({
                 const localX = (x / segments) * PATCH_SIZE;
                 const localZ = (z / segments) * PATCH_SIZE;
 
-                // Sample height at absolute world position
-                const worldPosX = worldX + localX;
-                const worldPosZ = worldZ + localZ;
-                const height = getTerrainHeight(worldPosX, worldPosZ);
-
                 // Set position using local coordinates (X, Y, Z) - Y is up
                 positions[vertexIndex * 3] = localX;
-                positions[vertexIndex * 3 + 1] = height;
+                positions[vertexIndex * 3 + 1] = TERRAIN_HEIGHT;
                 positions[vertexIndex * 3 + 2] = localZ;
 
                 // Set UVs
@@ -115,7 +110,7 @@ function TerrainPatch({
 
     return (
         <mesh 
-            position={[worldX, 0, worldZ]} 
+            position={[worldCoords.x, 0, worldCoords.y]} 
             geometry={geometry}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}

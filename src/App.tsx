@@ -1,27 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Vector3 } from 'three';
 import { TerrainScene } from './TerrainScene';
 import { OverlayUI } from './UI/Overlay';
 import { calculateCurrentPatch, tileToWorldPosition } from './utils/grid';
-import { TILE_COL, TILE_ROW, PATCH_SIZE } from './utils/constants';
+import { TILE_COL, TILE_ROW, PATCH_SIZE } from './common/constants';
 import { LidarPointCloud } from './data/LidarPointCloud';
 import './App.css';
 import { EntityType } from './common/types';
 
 function App() {
   // Calculate initial world position from default tile coordinates
-  const [patchCornerX, patchCornerZ] = tileToWorldPosition(TILE_COL, TILE_ROW);
+  const { x: patchCornerX, y: patchCornerZ } = tileToWorldPosition(TILE_COL, TILE_ROW);
 
   // Position player slightly inside the patch to avoid boundary issues
-  const initialPlayerX = patchCornerX + PATCH_SIZE / 2;
-  const initialPlayerZ = patchCornerZ + PATCH_SIZE / 2;
+  const playerPos = new Vector3(patchCornerX + PATCH_SIZE / 2, 0, patchCornerZ + PATCH_SIZE / 2)
 
   // Global state management
   const [currentPatch, setCurrentPatch] = useState<string>(`${TILE_COL}:${TILE_ROW}`);
-  const [playerPosition, setPlayerPosition] = useState<[number, number, number]>([
-    initialPlayerX,
-    0,
-    initialPlayerZ
-  ]);
+  const [playerPosition, setPlayerPosition] = useState<Vector3>(playerPos);
   const [isCameraTracking, setIsCameraTracking] = useState(true);
   const [cameraProjection, setCameraProjection] = useState<'perspective' | 'orthographic'>('perspective');
 const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
@@ -100,8 +96,8 @@ const [terrainTransparency, setTerrainTransparency] = useState<number>(1.0);
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <TerrainScene 
-        playerPosition={playerPosition} 
-        onPlayerPositionChange={setPlayerPosition}
+        playerPos={playerPosition} 
+        onPlayerPosChange={setPlayerPosition}
         currentPatch={currentPatch}
         pointCloud={pointCloud}
         isCameraTracking={isCameraTracking}

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { PATCH_SIZE } from '../utils/constants';
+import { PATCH_SIZE } from '../common/constants';
 
 export function usePatchProceduralTexture(patchId: string): THREE.CanvasTexture {
   return useMemo(() => {

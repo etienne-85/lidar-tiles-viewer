@@ -4,9 +4,10 @@ import { ControlPanel } from './ControlPanel';
 import { LidarPointCloud } from '../data/LidarPointCloud';
 import { StatusBar } from './StatusBar';
 import { EntityType } from '../common/types';
+import { Vector3 } from 'three';
 
 interface OverlayUIProps {
-  playerPosition: [number, number, number];
+  playerPosition: Vector3;
   currentPatch: string;
   onFileLoaded: (file: File) => void;
   onFileError: (error: string) => void;

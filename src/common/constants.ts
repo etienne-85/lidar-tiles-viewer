@@ -5,3 +5,5 @@ export const TILE_ROW = 181774;
 // Number of patches showed around player
 export const TILE_RANGE = 20; 
 export const ZOOM_LEVEL = 19
+// Temporary hardcoded terrain height value
+export const TERRAIN_HEIGHT = 125

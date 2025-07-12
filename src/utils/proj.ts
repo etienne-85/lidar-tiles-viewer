@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
 import proj4 from 'proj4';
 import { LidarPointCloud } from '../data/LidarPointCloud';
-import { PATCH_SIZE, ZOOM_LEVEL } from './constants';
+import { PATCH_SIZE, ZOOM_LEVEL } from '../common/constants';
 
 // Standard constants for Web Mercator (EPSG:3857) calculations
 export const EARTH_RADIUS = 6378137; // Meters (WGS84 semi-major axis, used in Web Mercator)

@@ -1,8 +1,9 @@
 import React from 'react';
 import { EntityType } from '../common/types';
+import { Vector3 } from 'three';
 
 interface StatusBarProps {
-  playerPosition: [number, number, number];
+  playerPosition: Vector3;
   currentPatch: string;
   highlightedTileId?: string | null;
   selectedItemType?: EntityType;
@@ -44,7 +45,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     >
       {/* Player position and patch */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ color: '#9cdcfe' }}>{`XYZ: ${Math.round(playerPosition[0])}, ${Math.round(playerPosition[1])}, ${Math.round(playerPosition[2])}`}</span>
+        <span style={{ color: '#9cdcfe' }}>{`XYZ: ${Math.round(playerPosition.x)}, ${Math.round(playerPosition.y)}, ${Math.round(playerPosition.z)}`}</span>
         <span style={{ color: '#b5cea8' }}>| Patch: {currentPatch}</span>
       </div>
 
@@ -59,4 +60,4 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       </div>
     </div>
   );
-}; 
+};
